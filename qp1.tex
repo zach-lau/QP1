@@ -1,0 +1,239 @@
+\documentclass{article}
+\usepackage{shortex}
+\usepackage{qp}
+\usepackage[margin=1in]{geometry}
+
+\author{Zachary Lau}
+\title{Extended Ensemble Kalman Methods}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% Problem setup
+\section{Introduction}
+State-space models are a widely applied and useful tool whenever we are
+modelling the evolution of some sort of state over time given observations
+which are dependent on the underlying state. Examples include modelling
+the behaviour of animals given tracking data, the location
+of a plane given radar readings, or the state of a climate system given
+observations at set of weather stations.
+
+The classical frequentist approach
+to estimating a continuous state is the Kalman filter \cite{simon2006}. This
+method starts with an initial estimate of the state, as well as a
+quantification of the uncertainty of that estimate. The estimate and uncertainty
+quantification are iteratively used to forecast the next step, and then
+updated based on observations from that time step. However, the basic
+Kalman filter only applies when our physical model is linear, and noise
+is Gaussian. This makes it difficult to account for non-linear effects. For example,
+we cannot account for pitch, yaw and roll in the vehicle dynamics model.
+The extended Kalman filter addresses this problem by using non-linear dynamics
+for the forecasting step, but using a linearized model to update the forecast
+covariance. Extended Kalman filters work well for small dimensional problems.
+However, they may suffer from two main problems. Firstly, the covariance
+updates remain inexact, which may cause instability \cite{evensen1992}.
+Furthermore, when the state space is high dimensional, it becomes extremely
+costly to propogate and update a dense covariance matrix. This problem
+inspired the ensemble Kalman filter \cite{evensen1994}\cite{evensen2003}.
+The ensemble Kalman filter addresses these issues by maintaining a particle
+approximation of the filtering distribution. Crucially, the number of particles
+required for an accurate representation of the distribution is often much lower
+than the dimension of the state space. This enables a low-rank representation
+of the covariance matrix.
+
+The ensemble Kalman filter is state of the art for high dimensional
+climate based state space models. However, it is still constrained by the
+Gaussian constraints on the observation noise and the modelling noise introduced
+during the forecasting steps. This restraint restricts us, for example, from
+modelling skewed or heavy-tailed distributions such as rainfall. In
+low-dimensions, these constraints can be relaxed by Markov Chain Monte Carlo
+(MCMC), Sequential Monte Carlo (SMC) methods \cite{chopin2020} or Mixture Kalman
+Filter \cite{chen2000}. These methods typically work by propogating an ensemble
+of weighted particles through time. Unfortunately, in high dimensions these
+techniques are known to suffer from weight degeneracy, wherein a single particle
+is assigned all of the weight of the ensemble.
+
+\section{Methodology}
+
+\subsection{GEnKF, PEnKF}
+In \cite{katzfuss2020} the authors propose combining ensemble Kalman methods
+with particle methods. In particular, the state is divided into two parts,
+a high-dimensional part which is well modelled by Gaussian model dynamics,
+and a low dimensional part which is not modelled well by Gaussian dynamics.
+For example, the high-dimensional section may consist of a large spatial grid,
+whereas the low dimensional part of the state space may consist of a set of
+parameters over which we wish to perform Bayesian inference. Their key
+algorithmic contribution is to use an ensemble Kalman filter to model the
+high-dimensional portion of the state, but to do so within an SMC framework.
+This reduces the effective dimensionality of the SMC problem, allowing one to
+incorporate both high-dimensional latent spaces, as well as non-Gaussian
+parameters -- a combination previously inaccessible to either of SMC methods or
+ensemble Kalman filter methods on their own.
+
+\subsubsection{Hierarchical State Space Models}
+The generic hierarchical state space model considered in \cite{katzfuss2020} is
+shown below.
+\begin{align}
+    \theta_t | \theta_{t-1} &\sim p(\theta_t | \theta_{t-1}) \label{eq:prior}\\
+    \vx_t | \vx_{t-1}, \mathbf\theta_t &\sim \Norm_n(\mathcal M(\vx_{t-1}), \mathbf Q_t) \\
+    \vy | \vx_t, \mathbf\theta_t &\sim \Norm_{m_t}(\mathbf H_t \vx_t, \mathbf R_t) \\
+    \vz_t | \vy_t, \mathbf\theta_t &\sim f_t(\vz_t | \vy_t, \mathbf\theta_t) \label{eq:transform}
+\end{align}
+This model extends the model typically used in Kalman filtering probmes by
+introducing a non-Gaussian parameter in line~\ref{eq:prior}, and a transformation
+which can account for non-normality in the observations in line~\ref{eq:transform}.
+Due to these extensions, a traditional ensemble Kalman filter is inappropriate.
+However, when the dimension of $\vx$ is very high, such as a large spatial grid,
+then SMC methods will struggle from weight degeneracy.
+
+\begin{example}[Rainfall model]\label{ex:rainfall}
+A practical example of such a hierarchial state space model is the rainfall
+model provided in \cite{katzfuss2020} and based on 
+\cite{sanso1999} and \cite{sigrist2012}. This model is shown below
+\begin{align}
+    \theta_t &\sim p(\theta_t) \\
+    \vx_t | \vx_{t-1} &\sim \Norm_n(\mathcal M_t(\vx_{t-1}), \mathbf Q_t) \\
+    \vy_t | \vx_t &\sim \Norm_{m_t}(\mathbf H_t \vx_t , \sigma^2_t \mathbf I_{m_t})  \\
+    z_{t,l} | \vy_t ,\theta_t &= y_{t,l}^{\theta_t} \mathbf{1}_{\{y_{t,l} > 0\}}, \quad l = 1, \ldots, m_t 
+\end{align}
+This model reflects a series of spatially correlated series of stations. The
+rainfall at each station is log-normally distributed, and truncated below by
+$0$. Futhermore, the rainfall at all locations is modulated by a time-dependent
+global parameter $\theta_t$. 
+\end{example}
+
+\subsubsection{PEnKF}
+The most basic method proposed by \cite{katzfuss2020} is the
+``particle ensemble Kalman filter'' (PEnKF). This algoritihm maintains a
+particle representation of the filtering distribution of $\theta_t$, as well as 
+one ensemble for each $\theta_t$. The algorthm is described as follows
+\begin{enumerate}
+    \item Initialize a set of $M$ particles from prior $p(\theta_0)$ witih weights
+    $w^i = \frac 1 M$ and for each $\theta_0^i$ an ensemble of $N$ particles
+    $\vx_0^{ij} \sim \Norm_n(\vx_0|\mu_{0|0}, \Sigma_{0|0})$
+    \item For each time step $1, \ldots, T$
+    \begin{enumerate}
+        \item For each particle $i = 1, \ldots, M$
+        \begin{enumerate}
+            \item Sample from a proposal $q_t(\theta^i_t | \theta^i_{t-1})$
+            \item Propogate the ensmble. That is compute the \emph{forecast}
+            by applying the model to each ensemble member. I.e. compute
+            $\tilde \vx^{i,j}_{t} := \mathcal M_t(\vx^{i,j}_{t-1}; \theta_t^i)$
+            for $j = 1, \ldots, N$
+            \item Update particle weights
+            \begin{align}
+                w^i_t \propto w^i_{t-1}\mathcal L_t^Z(\vz_t | \theta_t^i, \tilde\vx^i_t)
+                p(\theta_t^i|\theta_{t-1})/q_t(\theta_t^i|\theta_{t-1}^i)
+            \end{align}\label{step:likelihood}
+            \item Draw a new ensemble $\vx^{ij}_t$ afresh from the conditional distribution
+            $p(\vx^{ij}_t | \mathbf\theta_{1:t}, \vz_{1:t})$ \label{step:sample}
+        \end{enumerate}
+    \end{enumerate}
+    \item If desired, resample particles $\theta^i$ to rebalance weights.
+\end{enumerate}
+The major immediate challenges required to make such an algorithm work include
+estimating the likelihood term in step~\ref{step:likelihood}, and sampling from
+the conditional distribution in step~\ref{step:sample}. In particular,
+\cite{katzfuss2020} suggest using a normal approximation to the forecast
+distribution $p(\tilde\vx^i_t | \vz_{t-1})$ based on an estimate of the mean
+and covariance of the ensemble. Practically, we are also limited by the number of
+$\theta$ particles $N$ we can use, since each particle requires its own
+ensemble of $M$ further particles.
+% Suggested - use EnKF to approximate likelihood here
+
+\subsubsection{GEnKF}
+Under appropriate conditions on our model, the requirement for an ensemble of
+ensembles can be relaxed, and instead a single ensemble can be used which
+covers both $\vx_t$ and $\theta_t$. The required conditions are forecast
+independence, and tractability of full conditional distributions (FCD's).
+
+\begin{condition}[Forecast independence]\label{cond:forecast}
+An HSSM is said to exhibit forecast independence if
+\begin{align}
+    p(\tilde\vx_t, \mathbf\theta_t | \vz_{1:t-1}) &=
+        p(\tilde\vx_t | \vz_{1:t-1})p(\mathbf\theta_t|\vz_{1:t-1})
+\end{align}
+\end{condition}
+
+\begin{condition}[Full conditional distributions]\label{cond:conditional}
+An HSSM satisfies the full conditional distribution condition if we can
+tractably sample from $p(\vy_t|\vx_t,\theta_t,\vz_{1:t})$ and 
+$p(\mathbf\theta_t | \vy_t, \vx_t, \vz_{1:t})$
+\end{condition}
+
+Condition~\ref{cond:forecast} is satisfied in relatively straightforward, but by
+no means all-encompasing scenarios.  For example, it holds when when the
+$\theta_t$ are independent and the forecasting model $\mathcal M$ does not
+depend on $\theta_t$, as \ref{ex:rainfall}.
+Condition~\ref{cond:conditional} is more complicated to verify, and also less
+clear cut as tractability to sampling depends on what inference algorithm 
+we are using. It most straightforward to show in the case of conjugate priors,
+as happens in example~\ref{ex:rainfall}. The resulting algorithm is
+described below
+\begin{enumerate}
+    \item Sample an ensemble $(\vx^i_0, \theta^i_0)$ for $i=1,\ldots M$
+    from the prior at $t=0$
+    \item For each time step $t = 1, 2, \ldots, T$
+    \begin{enumerate}
+        \item Compute the forecast ensemble $\tilde \vx^i_t = \mathcal M(\vx^i_{t-1})$ for
+        $i=1,\ldots, M$
+        \item For each particle $i=1, \ldots, M$ perform Gibb's sampling
+        \begin{enumerate}
+            \item Choose intial values for $\vy^i_t$ and $\theta^i_t$
+            \item Until convergence
+            \begin{enumerate}
+                \item Sample $\vx^i_t$ by picking a random ancestor from $j=1$
+                to $M$ and performing the EnKF update on
+                $\tilde \vx^j_{t-1}$ given $\vy^i_t$ and $\theta^i_t$
+                \label{step:enkf}
+                \item Sample $\vy^i_t$ from $p(\vy^i_t | \theta^i_t, \vx^i_t, \vz_{1:t})$
+                \item Sample $\theta^i_t$ from $p(\theta^i_t | \vy^i_t, \vx^i_t, \vz_{1:t})$
+            \end{enumerate}
+        \end{enumerate}
+    \end{enumerate}
+\end{enumerate}
+A key variance reduction technique suggested by \cite{katzfuss2020} is to run
+each chain in parallel, and to use systematic resampling \cite{chopin2020} in
+step~\ref{step:enkf}. It is clear that condition~\ref{cond:conditional} is
+necessary to make the Gibb's sampler work. Forecast independence is required
+because the EnKF update relies on a sample-based estimate of the forecast
+covariance of $\tilde x_t$. Under forecast independence, the distribution of
+$\tilde x_t$ is independent of $\mathbf\theta$, and therefore we can pool all
+elements of the ensemble to form this estimate. Without forecast independence,
+the covariance would be dependent on $\mathbf\theta_t$, and we would require
+a new ensemble for every $\theta_t^i$, as in the PEnKF.
+
+
+
+\subsection{Criticism of GEnKF and PenKF}
+% Not really using ensemble Kalman updates? N \times M issue
+
+% Background Kalman filter Extended Kalman Filter Ensemble Kalman Filter
+% Particle filter methods
+
+% This methodology
+% GenKF
+% PenKF
+
+% Computer experiments
+% Implemenet the GenKF and PenKF
+% Reproduce the results from the paper
+% If time
+%  - Check robustness to different priors, non-linear dynamics. Compare to particle filters
+
+% Discussion
+% Critical analysis of this method
+%   Strengths
+%   - Fast (low rank, sample)
+%   - Flexible (handles hierarhical models and parametesr not handled well by state augemtnation)
+%   Weaknesses
+%   - Sacrifices asymptotic correctness
+% Propsal extension methods
+%   - What if we try to learn a flow or an SDE instead of using Kalmn filter updates?
+%   - If time work out the math here
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

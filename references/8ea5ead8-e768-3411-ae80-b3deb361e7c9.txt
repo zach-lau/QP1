@@ -1,0 +1,14 @@
+@article{8ea5ead8-e768-3411-ae80-b3deb361e7c9,
+ ISSN = {00359254, 14679876},
+ URL = {http://www.jstor.org/stable/2680829},
+ abstract = {We consider a set of data from 80 stations in the Venezuelan state of Guárico consisting of accumulated monthly rainfall in a time span of 16 years. The problem of modelling rainfall accumulated over fixed periods of time and recorded at meteorological stations at different sites is studied by using a model based on the assumption that the data follow a truncated and transformed multivariate normal distribution. The spatial correlation is modelled by using an exponentially decreasing correlation function and an interpolating surface for the means. Missing data and dry periods are handled within a Markov chain Monte Carlo framework using latent variables. We estimate the amount of rainfall as well as the probability of a dry period by using the predictive density of the data. We considered a model based on a full second-degree polynomial over the spatial co-ordinates as well as the first two Fourier harmonics to describe the variability during the year. Predictive inferences on the data show very realistic results, capturing the typical rainfall variability in time and space for that region. Important extensions of the model are also discussed.},
+ author = {Bruno Sansó and Lelys Guenni},
+ journal = {Journal of the Royal Statistical Society. Series C (Applied Statistics)},
+ number = {3},
+ pages = {345--362},
+ publisher = {[Royal Statistical Society, Oxford University Press]},
+ title = {Venezuelan Rainfall Data Analysed by Using a Bayesian Space-Time Model},
+ urldate = {2026-10-15},
+ volume = {48},
+ year = {1999}
+}

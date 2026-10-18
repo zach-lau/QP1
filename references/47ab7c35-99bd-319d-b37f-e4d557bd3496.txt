@@ -1,0 +1,14 @@
+@article{47ab7c35-99bd-319d-b37f-e4d557bd3496,
+ ISSN = {13697412, 14679868},
+ URL = {http://www.jstor.org/stable/2680693},
+ abstract = {In treating dynamic systems, sequential Monte Carlo methods use discrete samples to represent a complicated probability distribution and use rejection sampling, importance sampling and weighted resampling to complete the on-line 'filtering' task. We propose a special sequential Monte Carlo method, the mixture Kalman filter, which uses a random mixture of the Gaussian distributions to approximate a target distribution. It is designed for on-line estimation and prediction of conditional and partial conditional dynamic linear models, which are themselves a class of widely used non-linear systems and also serve to approximate many others. Compared with a few available filtering methods including Monte Carlo methods, the gain in efficiency that is provided by the mixture Kalman filter can be very substantial. Another contribution of the paper is the formulation of many non-linear systems into conditional or partial conditional linear form, to which the mixture Kalman filter can be applied. Examples in target tracking and digital communications are given to demonstrate the procedures proposed.},
+ author = {Rong Chen and Jun S. Liu},
+ journal = {Journal of the Royal Statistical Society. Series B (Statistical Methodology)},
+ number = {3},
+ pages = {493--508},
+ publisher = {[Royal Statistical Society, Oxford University Press]},
+ title = {Mixture Kalman Filters},
+ urldate = {2026-10-14},
+ volume = {62},
+ year = {2000}
+}

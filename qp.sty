@@ -1,0 +1,22 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  qp.sty
+%%  Personal additions on top of shortex.sty
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\ProvidesPackage{qp}
+\RequirePackage{shortex}
+
+% theorem-like envs
+\defineshortenedtheoremlike{cond}{condition}{Condition}{Conditions}{numberlike=theorem}
+
+% bold vector shortcuts: \va, ..., \vz and \vA, ..., \vZ give \mathbf{a}, ..., \mathbf{Z}
+\newcommand{\definevectormacros}[1]{%
+  \@tfor\shortex@letter:=#1\do{%
+    \@ifundefined{v\shortex@letter}{}{%
+      \PackageError{qp}{\expandafter\string\csname v\shortex@letter\endcsname\space is already defined}{}}%
+    \expandafter\xdef\csname v\shortex@letter\endcsname{%
+      \noexpand\ensuremath{\noexpand\mathbf{\shortex@letter}}}%
+  }%
+}
+\expandafter\definevectormacros\expandafter{\lowercaseRoman}
+\expandafter\definevectormacros\expandafter{\uppercaseRoman}
