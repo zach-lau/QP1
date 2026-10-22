@@ -25,12 +25,14 @@ def draw_y(x, indices, sigma=0.2):
 def draw_z(y, theta):
     return y.clamp(min=0)**theta
 def model(x):
-    """ State-space dynamics. These were not used in the original paper"""
-    return x
+    return x*0.8
+def add_noise(x):
+    """ Add spatially correlated, zero-mean noise with variance 0.36 """
+    return x + 0.6*draw_prior_state(mean=0.0)
 def update_state(x):
     """ Could incorporate prior over noise here too"""
     # Make the state updates also spatially correlated
-    return x*0.8 + 0.6*draw_prior_state()
+    return add_noise(model(x))
 def update_theta():
     return draw_prior_theta() # assume independence
 
@@ -67,12 +69,13 @@ def log_likelihood(x, stations, z, theta, sigma):
 def penkf_log_likelihood(mu, Sigma, stations, z, theta, sigma):
     """ Log marginal likelihood p(z | theta) under the diagonal approximation
     of the PEnKF forecast, wrt lebesgue + dirac(0), up to the same constant as
-    log_likelihood. mu and Sigma are the mean and covariance of the forecast
-    for the full state (Sigma should already include the model noise Q); only
-    the diagonal of Sigma at the observed stations is used. """
+    log_likelihood. mu is the forecast mean for the full state and Sigma the
+    diagonal of the forecast covariance (a vector of variances, one per grid
+    cell), which does not include the observation noise; that is added here
+    as sigma**2. """
     eps = 1e-12
     obs_mu = mu[stations]
-    obs_var = Sigma.diagonal()[stations]
+    obs_var = Sigma[stations]
     # Observation noise adds to the forecast variance
     s2 = sigma**2 + obs_var
     pos = z > eps

@@ -29,3 +29,14 @@ qp1.pdf
 # Local files
 *.zip
 code/supp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
