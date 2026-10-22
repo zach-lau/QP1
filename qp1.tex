@@ -2,6 +2,8 @@
 \usepackage{shortex}
 \usepackage{qp}
 \usepackage[margin=1in]{geometry}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
 
 \author{Zachary Lau}
 \title{Extended Ensemble Kalman Methods}
@@ -164,12 +166,14 @@ $p(\mathbf\theta_t | \vy_t, \vx_t, \vz_{1:t})$
 
 Condition~\ref{cond:forecast} is satisfied in relatively straightforward, but by
 no means all-encompasing scenarios.  For example, it holds when when the
-$\theta_t$ are independent and the forecasting model $\mathcal M$ does not
-depend on $\theta_t$, as \ref{ex:rainfall}.
-Condition~\ref{cond:conditional} is more complicated to verify, and also less
-clear cut as tractability to sampling depends on what inference algorithm 
-we are using. It most straightforward to show in the case of conjugate priors,
-as happens in example~\ref{ex:rainfall}. The resulting algorithm is
+$\theta_t$ are independent, and the forecasting model $\mathcal M$ does not
+depend on $\theta_t$, as in Example~\ref{ex:rainfall}.
+Figure~\ref{fig:hssm-dag}, shows a partial causal graph for the hierarchical
+state space model, and elucidates how these conditions imply forecast
+independence.  Condition~\ref{cond:conditional} is more complicated to verify,
+and also less clear cut as tractability to sampling depends on what inference
+algorithm we are using. It most straightforward to show in the case of conjugate
+priors, as happens in example~\ref{ex:rainfall}. The resulting algorithm is
 described below
 \begin{enumerate}
     \item Sample an ensemble $(\vx^i_0, \theta^i_0)$ for $i=1,\ldots M$
@@ -194,19 +198,83 @@ described below
     \end{enumerate}
 \end{enumerate}
 A key variance reduction technique suggested by \cite{katzfuss2020} is to run
-each chain in parallel, and to use systematic resampling \cite{chopin2020} in
-step~\ref{step:enkf}. It is clear that condition~\ref{cond:conditional} is
-necessary to make the Gibb's sampler work. Forecast independence is required
-because the EnKF update relies on a sample-based estimate of the forecast
-covariance of $\tilde x_t$. Under forecast independence, the distribution of
-$\tilde x_t$ is independent of $\mathbf\theta$, and therefore we can pool all
-elements of the ensemble to form this estimate. Without forecast independence,
-the covariance would be dependent on $\mathbf\theta_t$, and we would require
-a new ensemble for every $\theta_t^i$, as in the PEnKF.
+each chain in parallel, and to use systematic resampling \cite{chopin2020}
+across chains in step~\ref{step:enkf}. It is clear that
+condition~\ref{cond:conditional} is necessary to make the Gibb's sampler work.
+Forecast independence is required because the EnKF update relies on a
+sample-based estimate of the forecast covariance of $\tilde x_t$. Under forecast
+independence, the distribution of $\tilde x_t$ is independent of
+$\mathbf\theta$, and therefore we can pool all elements of the ensemble to form
+this estimate. Without forecast independence, the covariance would be dependent
+on $\mathbf\theta_t$, and we would require a new ensemble for every
+$\theta_t^i$, as in the PEnKF, or a reweighting of the existing ensemble
+which is likely to suffer from weight degeneracy \cite{katzfuss2020}.
 
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+    >={Stealth[length=2.5mm]},
+    var/.style={circle, draw, minimum size=1.1cm, inner sep=1pt},
+    obs/.style={rectangle, draw, minimum width=1.1cm, minimum height=0.9cm, inner sep=2pt},
+    new/.style={red, thick},
+    node distance=3cm
+]
+    % Time t-1
+    \node[var] (th0) at (0,0) {$\theta_{t-1}$};
+    \node[var] (x0)  at (0,2.8) {$\vx_{t-1}$};
+    \node[var] (y0)  at (0,5.6) {$\vy_{t-1}$};
+    \node[obs] (z0)  at (0,8.2) {$\vz_{t-1}$};
 
+    % Forecast
+    \node[var] (xf)  at (4.5,2.8) {$\tilde\vx_t$};
+
+    % Time t
+    \node[var] (th1) at (9,0) {$\theta_t$};
+    \node[var] (x1)  at (9,2.8) {$\vx_t$};
+    \node[var] (y1)  at (9,5.6) {$\vy_t$};
+    \node[obs] (z1)  at (9,8.2) {$\vz_t$};
+
+    % Time t-1 edges
+    \draw[->] (th0) -- (x0);
+    \draw[->] (x0) -- (y0);
+    \draw[->] (y0) -- (z0);
+    \draw[->] (th0) to[bend left=30] (y0);
+    \draw[->] (th0) to[bend left=30] (z0);
+
+    % Time t edges
+    \draw[->] (th1) -- (x1);
+    \draw[->] (x1) -- (y1);
+    \draw[->] (y1) -- (z1);
+    \draw[->] (th1) to[bend right=30] (y1);
+    \draw[->] (th1) to[bend right=30] (z1);
+
+    % Forecast edges
+    \draw[->] (x0) -- (xf);
+    \draw[->] (xf) -- (x1);
+
+    % Parameter dynamics and parameter dependence of the forecast
+    \draw[->, new] (th0) -- (th1);
+    \draw[->, new] (th1) -- (xf);
+\end{tikzpicture}
+\caption{Causal graph of the hierarchical state space model. Observed
+variables $\vz_t$ are drawn as squares, for forecast independence we condition
+on $\vz_{t-1}$, but not $\vz_t$. The edge from $\mathbf\theta_t$
+to $\tilde\vx_t$ comes from the influence of $\mathbf\theta_t$ on the model
+$\mathcal M$. A sufficient condition to induce forecast independence is to
+remove this edge, as well as a the back-door path through $\mathbf\theta_{t-1}$.
+The latter can be done by assuming $\theta_t$ and $\theta_{t-1}$ are independent.}
+\label{fig:hssm-dag}
+\end{figure}
 
 \subsection{Criticism of GEnKF and PenKF}
+
+\section{Simulation study}
+
+\section{Proposed extensions}
+
+\section{Discussion}
+
+\section{Conclusion}
 % Not really using ensemble Kalman updates? N \times M issue
 
 % Background Kalman filter Extended Kalman Filter Ensemble Kalman Filter
@@ -235,5 +303,168 @@ a new ensemble for every $\theta_t^i$, as in the PEnKF.
 
 \bibliographystyle{plain}
 \bibliography{refs}
+
+\appendix
+\section{Rainfall model}
+\subsection{Particle filter likelihood}
+For the particle filter we require the log-likelhood.
+\begin{align}
+    \mathcal L(\theta, \vx; \vz)
+\end{align}
+We are using a particle
+filter on all our latent variables, so we use the conditional log-likelihood
+marginalizing over $\vy$. We have a point mass at zero, so instead of consdiering
+densities with respect to the lebesgue measure, we consider densities with
+respect to the Lebesgue measure plus a dirac delta at zero. Letting
+$m$ be the dimension of $y$, $\lambda$ the Lebesgue measure and $\delta_0$
+the Delta measure at $0$, we are using the likelihood with respect to
+\begin{align}
+    \nu := (\lambda + \delta_0)^n
+\end{align}
+Given the model in 
+Example~\ref{ex:rainfall}, the coordinates $y_i$ of $\vy$ are \iid conditional
+on $\vx$. This simplifies the likelihood. Based on the Jacobian of the
+transformation from $\vy$ go $\vz$, we can find the likelihood
+\begin{align}
+    \mathcal L(\mathbf\theta, \vx; \vz) &:= 
+        \prod_i \mathcal L_i(\theta, x_i; z_i) \\
+    \mathcal L_i(\theta, x_i; z_i) &:=
+        \begin{cases}
+            \Phi\left(-\frac{x_i}{\sigma_t}\right)\quad &\text{if } z = 0 \\
+            \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}\Norm\left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}; 0, 1\right)\quad &\text{else}
+        \end{cases}
+\end{align}
+The $z > 0$ term agrees with that presented in \cite{katzfuss2020}. They
+omit the $z=0$ term, because they presented the likelihood in the context of
+the GEnKF, which does not use the log-likelihood for updates of $x$. However,
+to use this for the particle filter, we must include this term.
+
+\subsection{PEnKF likelihood}
+For the PEnKF we need the marginal likelhood
+\begin{align}
+    \mathcal L(\theta; \vz)
+\end{align}
+This is different from the particle filter which required the likelihood of the
+joint state $(\theta, \vx)$. In general, \cite{katzfuss2020} suggest using
+an approximation of hte likelihood basd on the EnKF. Their procedure is as
+follows
+\begin{enumerate}
+    \item Propogate the ensemble to get $\tilde x_t^{ij} = \mathcal M(x_{t-1}^{ij};\mathbf\theta_i)$
+    \item Estimate $\mu$ and $\tilde\Sigma$, the mean and covariance of the propogated
+    ensemble
+    \item Approximate the prior on $\vx_t$ by a normal with mean $\mu$ and
+    variance $\widehat\Sigma = \tilde\Sigma + \mathbf Q$ 
+    \item Calculate the integral 
+    \begin{align}
+        p(\vz_t | \theta_{1:t}, \vz_{1:t}) &=
+            \int p(\vz_t | \vy_t, \mathbf \theta_t)\Norm(\vy_t;\mathbf H\mu,\mathbf H\widehat\Sigma\mathbf H^\top + \mathbf R)d\vy_t \label{eq:enkf_likelihood}
+    \end{align}
+\end{enumerate}
+In our case, however the observation model is conditionally deterministic given
+$\vy_t$ and $\mathbf\theta_t$. Due to the changing support, this would make
+Equation~\ref{eq:enkf_likelihood} unwieldy. Furthermore, in the case of our
+rainfall model, we have conditional independence of $z_i$ given $x_i$. This
+allows us to simplify our likelhood with respect to the mixed measure from
+before as \begin{align}
+    p(\vz|\mathbf\theta_t,\vx_t) &= 
+        \prod_i p(z_i | \theta, x_i)
+\end{align}
+Where 
+\begin{align}
+    p(z_i | \theta, x_i) &=
+        \begin{cases}
+            \Phi\left(-\frac{x_i}{\sigma_t}\right)\quad &\text{if } z = 0 \\
+            \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}\Norm\left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}; 0, 1\right)\quad &\text{else}
+        \end{cases}
+\end{align}
+as before with respect to the mixed measure $(\lambda + \delta_0)^m$.
+To find $p(\vz|\mathbf\theta)$ we marginalize over $\vx$
+\begin{align}
+    p(\vz|\mathbf\theta) &= \int p(\vz|\vx,\mathbf\theta)p(\vx|\mathbf\theta)dx
+\end{align}
+The conditional distribution $p(\vx|\theta)$ is approximated by adding noise to
+the forecasting distribution to get $p(\vx|\theta) = \Norm(\mu,\widehat\Sigma + \mathbf
+Q)$. Using the independence asumption
+\begin{align}
+    \int p(\vz | \vx,\theta)p(\vx|\theta) dx 
+    &= \int \prod_i p(z_i | x_i, \theta)p(\vx|\theta) dx 
+\end{align}
+
+\subsection{A diagonal approximation}
+We can analytically solve this integral in the case of diagonal approximation
+to $\widehat\Sigma + \mathbf Q$.
+In this we further simplify as 
+\begin{align}
+    \int \prod_i p(z_i | x_i, \theta)p(\vx|\theta) dx &= 
+    \prod_i \int p(z_i |x_i,\theta)p(x_i|\theta)\,dx_i
+\end{align}
+In the case $z_i=0$ with $x_i \sim \Norm(\mu_i, \sigma^2_i)$ we have
+$\frac{-x_i}{\sigma_t} \sim \mathcal N\left(-\frac{\mu_i}{\sigma_t},\frac{\sigma_i^2}{\sigma_t^2}\right)$, and by 
+Lemma~\ref{lemma:icdf}
+\begin{align}
+    \mathbb E\left[p(z_i=0| \theta, x_i)|\theta\right] &= \Phi\left(\frac{-\mu_i}{\sqrt{\sigma_t^2+\sigma_i^2}}\right)
+\end{align}
+In the case $z > 0$, we note that
+\begin{align}
+    \frac{z_i^{\frac 1 \theta} - x_i}{\sigma_t} 
+        \sim \Norm\left(\frac{z_i^{\frac 1 \theta} - \mu_i}{\sigma_t}, \frac{\sigma_i^2}{\sigma_t^2}\right)
+\end{align}
+and so from Lemma~\ref{lemma:exponent}
+\begin{align}
+    \mathbb E p(z_i | \theta, x_i)
+    &= \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}
+        \E\left[\frac{1}{\sqrt{2\pi}}\exp\left(-\frac 1 2 \left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}\right)^2\right)\right] \\
+    &= \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}
+        \frac{1}{\sqrt{2\pi\left(1+\frac{\sigma_i^2}{\sigma_t^2}\right)}}
+        \exp\left(-\frac{\left(z_i^{1/\theta}-\mu_i\right)^2}{2\left(\sigma_t^2+\sigma_i^2\right)}\right) \\
+    &= \frac{1}{\theta}z_i^{\frac 1 \theta - 1}\Norm\left(z_i^{1/\theta};\mu_i,\sigma_t^2+\sigma_i^2\right)
+\end{align}
+We can also recognize this as the likelihood of $p(y_i|z_i,\theta)$ adjusted by the
+Jacobian determinant $\frac{1}{\theta}z^{\frac{1}{\theta}-1}$.
+
+The independence assumption implies only the diagional elements of the
+covariance actually matter. 
+With deterministic trasnform, penkf jsut requires density estimator
+
+\begin{lemma}\label{lemma:icdf}
+    If $X \sim \Norm(\mu, \sigma^2)$ then
+    $\E\Phi(X) = \Phi\left(\frac{\mu}{\sqrt{1+\sigma^2}}\right)$
+\end{lemma}
+\begin{proof}
+    From the definition of the CDF and tower rule
+    \begin{align}
+        \Phi(X) &= \P(Z \leq X | X) \quad Z \sim \Norm(0,1) \perp X \\
+        \E\Phi(X) &= \P(Z \leq X) \\
+        &= \P(Z - X \leq 0)
+    \end{align}
+    But since $X$ and $Z$ are both normal and $X \perp Z$
+    \begin{align}
+        Z - X &\sim \Norm\left(-\mu, 1+\sigma^2\right) \\
+        \P(Z-X \leq 0) &= \Phi\left(\frac{\mu}{\sqrt{1+\sigma^2}}\right)
+    \end{align}
+\end{proof}
+
+\begin{lemma}\label{lemma:exponent}
+    For $X \sim \Norm(\mu, \sigma^2)$
+    \begin{align}
+        \E\left[\frac{1}{\sqrt{2\pi}}\exp\left(-\frac{X^2}{2}\right)\right] &= 
+            \frac{1}{\sqrt{2\pi(1+\sigma^2)}}\exp\left(-\frac{\mu^2}{2(1+\sigma^2)}\right)
+    \end{align}
+\end{lemma}
+\begin{proof}
+    We perform the integral by completing the square
+    \begin{align}
+        \E\left[\frac{1}{\sqrt{2\pi}}\exp\left(-\frac{X^2}{2}\right)\right] &= 
+                \frac{1}{2\pi\sigma}\int \exp\left(-\frac{x^2}{2}\right)\exp\left(-\frac {1}{2\sigma^2}(x-\mu)^2\right) dx \\
+        &= \frac{1}{2\pi\sigma}\int \exp\left(-\frac{x^2}{2}\right)\exp\left(-\frac{1}{2\sigma^2} \left(x^2 - 2x\mu + \mu^2 \right)\right) dx \\
+        &= \frac{1}{2\pi\sigma}\int \exp\left(-\frac{1}{2\sigma^2}\left(x^2(1+\sigma^2) - 2x\mu + \mu^2 \right)\right) dx \\
+        &= \frac{1}{2\pi\sigma}\int \exp\left(-\frac{1}{2\sigma^2}\left(x^2(1+\sigma^2) - 2x\mu + \frac{\mu^2}{1+\sigma^2} -  \frac{\mu^2}{1+\sigma^2} + \mu^2 \right)\right) dx\\
+        &= \frac{1}{2\pi\sigma}\int \exp\left(-\frac{1}{2\sigma^2}\left((1+\sigma^2)\left(x - \frac{\mu}{1+\sigma^2}\right)^2 + \frac{\sigma^2\mu^2}{1+\sigma^2} \right)\right) dx\\
+        &= \frac{1}{2\pi\sigma}\exp\left(-\frac 1 2\frac{\mu^2}{1+\sigma^2}\right)\int \exp\left(-\frac {1+\sigma^2}{2\sigma^2}\left(x - \frac{\mu}{1+\sigma^2}\right)^2\right) dx \\
+        &= \frac{1}{2\pi\sigma}\exp\left(-\frac 1 2\frac{\mu^2}{1+\sigma^2}\right)\sqrt{\frac{2\pi\sigma^2}{1+\sigma^2}} \\
+        &= \frac{1}{\sqrt{2\pi(1+\sigma^2)}}\exp\left(-\frac 1 2\frac{\mu^2}{1+\sigma^2}\right)
+    \end{align}
+    where the remaining integral is an unnormalized Gaussian integral, with $\int \exp\left(-\frac{a}{2}(x-m)^2\right)dx = \sqrt{2\pi/a}$ for $a = \frac{1+\sigma^2}{\sigma^2}$.
+\end{proof}
 
 \end{document}

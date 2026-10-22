@@ -25,3 +25,7 @@ qp1.pdf
 
 # Editor
 .vscode/
+
+# Local files
+*.zip
+code/supp
