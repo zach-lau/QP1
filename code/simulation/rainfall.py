@@ -9,6 +9,15 @@ import xarray as xr
 def draw_prior_theta():
     """ Draw from prior theta"""
     return 1 + torch.distributions.Gamma(20, 10).sample()
+def log_prior(theta):
+    """ Log prior density of theta, where theta - 1 ~ Gamma(20, 10) """
+    theta = torch.as_tensor(theta, dtype=torch.float32)
+    return torch.distributions.Gamma(20., 10.).log_prob(theta - 1)
+def grad_log_prior(theta):
+    """ Gradient of the log prior density of theta wrt theta, where
+    theta - 1 ~ Gamma(20, 10): (a-1)/(theta-1) - b """
+    a, b = 20., 10.
+    return (a-1)/(theta-1) - b
 def draw_prior_state(mean = 0.2, scale = 10, power=1.8):
     # Draw prior state based on power exponential covariance function
     x = torch.linspace(0, 100, 100)
@@ -89,7 +98,23 @@ def penkf_log_likelihood(mu, Sigma, stations, z, theta, sigma):
         + (1/theta-1)*torch.log(zpos).sum() \
         - m*math.log(theta) \
         + log_cdf(-muzero/s2zero.sqrt()).sum()
-    
+
+def genkf_lik_and_grad(theta, x, stations, z, sigma=0.2):
+    """ Log of the GEnKF conditional for theta, log p(theta) + log L(theta),
+    up to a constant, and its gradient wrt theta. Only z is needed from the
+    observations, since y enters through z = y^theta. Returns (ell, grad);
+    outside the prior support (theta <= 1) returns (-inf, 0). """
+    if theta <= 1:
+        return torch.tensor(-math.inf), torch.tensor(0.)
+    eps = 1e-12
+    pos = z > eps
+    zpos, xpos = z[pos], x[stations][pos]
+    logz = torch.log(zpos)
+    zt = zpos**(1/theta)
+    ell = log_prior(theta) + log_likelihood(x, stations, z, theta, sigma)
+    grad = grad_log_prior(theta) \
+        + (-1/theta - logz/theta**2 + logz*zt*(zt-xpos)/(sigma**2*theta**2)).sum()
+    return ell, grad
 
 # Simulate data
 def simulate_data(n = 100, m = 75, T = 1):

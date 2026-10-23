@@ -1,6 +1,7 @@
 """ Implementation of the PEnKF """
 
 from rainfall import *
+from hmc import hmc
 
 def normalize(log_weights):
     """ Normalize log weights so the weights sum to 1 """
@@ -37,6 +38,7 @@ def enkf_gain(X, stations, sigma):
     # H just selects stations so we never form H or the full n x n covariance
     A = X - X.mean(dim=0)                           # (M, n)
     HA = A[:, stations]                             # (M, m)
+    # Should be using Q and tapering here...
     # K = A^T HA (HA^T HA/(M-1) + sigma^2 I)^{-1}/(M-1), computed through the
     # M x M system by the push-through identity
     G = sigma**2*(M-1)*torch.eye(M) + HA @ HA.T     # (M, M)
@@ -124,7 +126,7 @@ def systematic_resample(log_weights):
     # Guard against the cdf ending slightly below 1 from rounding
     return torch.searchsorted(cdf, positions).clamp(max=n-1)
 
-def filter(stations, zs, n=10, m=10, T=None):
+def penkf(stations, zs, n=10, m=10, T=None):
     """ 
     stations: list of stations for observations
     zs: observations
@@ -175,3 +177,62 @@ def filter(stations, zs, n=10, m=10, T=None):
             particles = new_particles
             ensembles = new_ensembles
     return particles, log_weights, esses, ensembles
+
+def gibbs_update(f_ensemble, stations, z, sigma):
+    """ Perform gibbs update. Each member carries its own theta, started from
+    the prior, and all members are updated in parallel.
+
+    f_ensemble: forecast ensemble without noise (list of tensors)
+    stations: indices of the stations observed
+    z: observations at the stations
+    sigma: observation noise
+
+    Returns: tuple of the updated ensemble (list of tensors) and thetas (M,)
+    """
+    M = len(f_ensemble)
+    prior = noise_ensemble(f_ensemble)
+    T = 10 # 10 gibb's steps
+    xs = prior
+    thetas = torch.stack([draw_prior_theta() for _ in range(M)])
+    K = enkf_gain(torch.stack(prior, dim =0), stations, sigma)
+    for _ in range(T):
+        # Draw new y's
+        # For each element of z, if z = 0 draw from half normal
+        # otherwise y = z^(1/theta)
+        ys = conditional_ys(xs, stations, z, thetas[:, None], sigma)
+        # Draw new x
+        # Shuffle ancestors
+        # Perform enkf update for x given y and theta with K above
+        ancestors = [prior[j] for j in torch.randperm(M)]
+        xs = enkf_update(ancestors, stations, ys, sigma, K)
+        # Draw new theta from conditional distribution, with HMC started at
+        # the current theta of each member
+        thetas = torch.stack([
+            hmc(thetas[i], lambda t, x=xs[i]: genkf_lik_and_grad(float(t), x, stations, z, sigma),
+                stepsize=0.02)
+            for i in range(M)])
+    return list(zip(thetas, xs))
+
+def genkf(stations, zs, n=10, T=None):
+    """ 
+    stations: list of stations for observations
+    zs: observations
+    n: number of particles
+    T: time steps to filter if None do all
+    
+    Returns: tuple of particles, weights, effective sample sizes, and the
+    ensemble of each particle at the last time step
+    """
+    sigma = 0.2 # known sigma for drawing y from x
+    particles = []
+    for _ in range(n):
+        theta = draw_prior_theta()
+        x = draw_prior_state()
+        particles.append((theta, x))
+    log_weights = torch.full((n,), -math.log(n)) # adds to 1
+    for z in zs[:T]: # if T is None do all zs
+        """ Implement bootstrap particle filter """
+        f_ensemble = forecast_ensemble([x for (_,x) in particles]) # no noise yet
+        # Propose new particle
+        particles = gibbs_update(f_ensemble, stations, z, sigma)
+    return particles, log_weights
