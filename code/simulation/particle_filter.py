@@ -1,5 +1,6 @@
 """ Implement particle filter for the rainfall model """
 from rainfall import *
+from enkf import systematic_resample
 
 def normalize(log_weights):
     # Sum of weights should be 1
@@ -12,14 +13,16 @@ def ess(log_weights):
     # Return the ess
     return 1/(log_weights.exp()**2).sum()
 
-def filter(stations, zs, n=100, T=None):
+def filter(stations, zs, n=100, T=None, resample=True):
     """ 
     stations: list of stations for observations
     zs: observations
     n: number of particles
     T: time steps to filter if None do all
-    
-    Returns: tuple of particles and weights at last timem step
+    resample: resample when the ess drops below 0.66 n
+
+    Returns: tuple of particles, weights at last time step, and effective
+    sample sizes (before any resampling)
     """
     sigma = 0.2 # known sigma for drawing y from x
     particles = []
@@ -43,4 +46,10 @@ def filter(stations, zs, n=100, T=None):
         particles = new_particles
         log_weights = normalize(new_weights)
         esses.append(ess(log_weights))
+        # Resample with the updated weights when they get too uneven, after
+        # which the weights are equal again
+        if esses[-1] < 0.66*n and resample:
+            parents = systematic_resample(log_weights)
+            particles = [particles[i] for i in parents]
+            log_weights = torch.full((n,), -math.log(n))
     return particles, log_weights, esses

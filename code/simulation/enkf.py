@@ -126,7 +126,7 @@ def systematic_resample(log_weights):
     # Guard against the cdf ending slightly below 1 from rounding
     return torch.searchsorted(cdf, positions).clamp(max=n-1)
 
-def penkf(stations, zs, n=10, m=10, T=None):
+def penkf(stations, zs, n=10, m=10, T=None, resample=True):
     """ 
     stations: list of stations for observations
     zs: observations
@@ -168,7 +168,7 @@ def penkf(stations, zs, n=10, m=10, T=None):
         esses.append(get_ess(log_weights))
         # Resample with the updated weights when they get too uneven, after
         # which the weights are equal again
-        if esses[-1] < 0.66*n:
+        if esses[-1] < 0.66*n and resample:
             new_parents = systematic_resample(log_weights)
             particles = [new_particles[i] for i in new_parents]
             ensembles = [new_ensembles[i] for i in new_parents]
