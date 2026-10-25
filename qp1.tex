@@ -1,10 +1,9 @@
-\documentclass{article}
+\documentclass[12pt]{article}
 \usepackage{shortex}
 \usepackage{qp}
 \usepackage[margin=1in]{geometry}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
-
 \author{Zachary Lau}
 \title{Extended Ensemble Kalman Methods}
 \date{\today}
@@ -368,7 +367,7 @@ the current experiments.
     % model misspecification?
 \end{enumerate}
 
-\subsection{The GEnKF and PEnKF for the full rainfall model}
+\subsection{The GEnKF and PEnKF for the full rainfall model}\label{sec:full}
 To answer the above questions we perform a simulation study on simulated
 rainfall data. As much as possible, we use the same experimental setup
 as \cite{katzfuss2020}. We make the following changes to the simulation
@@ -497,7 +496,7 @@ than the prior, which we use as a baseline.
 % quadrature, PEnKF was fast thanks to approximation, but if we had to 
 % use quadrature it would have been super slow as well
 
-\subsection{Weight degenarcy}
+\subsection{Weight degeneracy}\label{sec:weight}
 % Run PEnKF without resampling
 % Weight degenarcy, show particle filter and ESS of PEnKF
 % Conclusion - yes PEnKF somewhat solves the weight degenarcy, problem but
@@ -556,7 +555,7 @@ answer this research question with a weak affirmative.
     \label{tab:ess}
 \end{table}
 
-\subsection{Practicality of forecast independence}
+\subsection{Practicality of forecast independence}\label{sec:one_step}
 % Does the state-space model actually help here or are time steps too
 % different from one another?
 
@@ -575,11 +574,162 @@ $T=1, \ldots, 9$, and compare the performance of the estimate of the latent
 state $x$ to that from a particle filter, GEnKF and PEnKF which see observations
 from all ten time points.
 
+Plots of the posterior 95\% credible interavls for each method are showin in 
+Figure \ref{fig:single-update-bands}. Again, we have significant weight
+degeneracy for the particle filter. Qualitatively, the particle filter and
+PEnKF are much worse than their counterparts with access to the full dataset.
+It is harder to tell for GEnKF, as both actually provide reasonable posterior
+means. The poor performance of the PEnKF and particle filter is partly
+explained by weight degenercy and the significant distance between prior and
+posterior. Nevertheless, the GEnKF, which is not susceptible to this problem,
+shows a large quantitive penalty from only seeing the last data point. We
+conclude that observations from previous time points do have a small but
+noticeable impact on inference in this model, and thus forecast independence
+is not necessarily a completely destructive constraint.
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{code/simulation/figures/particle_filter_single_update_band.png}
+        \caption{Particle filter ($n = 1000$)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{code/simulation/figures/penkf_single_update_band.png}
+        \caption{PEnKF ($n = 100$ particles, $m = 10$ members)}
+    \end{subfigure}
+
+    \vspace{1em}
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{code/simulation/figures/genkf_single_update_band.png}
+        \caption{GEnKF ($n = 100$ members)}
+    \end{subfigure}
+    \caption{Distribution of $\vx_{10}$ given only the observations at $T=10$:
+    posterior mean, 95\% credible band, and the true state, with the observing
+    stations marked on the bottom.}
+    \label{fig:single-update-bands}
+\end{figure}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{lcccccc}
+        \toprule
+        & \multicolumn{2}{c}{All ten time points} & \multicolumn{4}{c}{Final time point only} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-7}
+        Method & RMSPE & CRPS & RMSPE & CRPS & ESS & ESS$/n$ \\
+        \midrule
+        Particle filter & 0.420 & 0.341 & 0.821 & 0.634 & 1.00 & 0.001 \\
+        PEnKF & 0.257 & 0.153 & 0.446 & 0.269 & 1.47 & 0.015 \\
+        GEnKF & \textbf{0.184} & \textbf{0.120} & \textbf{0.271} & \textbf{0.154} & -- & -- \\
+        \bottomrule
+    \end{tabular}
+    \caption{Accuracy of the distribution of $\vx_{10}$ when each method sees
+    all ten time points or only the final one. RMSPE is the root mean squared
+    error of the posterior mean over the grid, and CRPS is averaged over the
+    grid. The best RMSPE and CRPS in each column is in bold. For the final time
+    point only, we also give the effective sample size (ESS) of the importance
+    weights, and the ESS as a fraction of the number of particles $n$. The GEnKF
+    has equally weighted members, so it has no ESS.}
+    \label{tab:single-update-metrics}
+\end{table}
+
+\subsection{Repeated seeds}
+We repeat the experiments in sections~\ref{sec:full}, \ref{sec:weight} and
+\ref{sec:one_step} across 30 different seeds in a full simulation study.
+Table~\ref{tab:replicates} reports the mean accuracy of each method over $30$
+simulated datasets, and the paired differences between methods within each
+dataset. These results confirm that the GEnKF performs significantly better
+than the PEnKF, which in turn performs significantly better than the particle
+filter on it's own. The effective sample sizes of the particle filter and the
+PEnKF over these datasets are reported in Appendix~\ref{sec:ess_replicates},
+and agree with our single-seed experiment from the previous sections.
+
+\begin{table}[tbp]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabular}{lcccc}
+        \toprule
+        & \multicolumn{2}{c}{All ten time points} & \multicolumn{2}{c}{Final time point only} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
+        & RMSPE & CRPS & RMSPE & CRPS \\
+        \midrule
+        \multicolumn{5}{l}{\emph{Mean over datasets [95\% confidence interval]}} \\
+        \shortstack[l]{Prior \\ {\scriptsize\phantom{[0]}}} & \shortstack{0.955 \\ {\scriptsize [0.867, 1.044]}} & \shortstack{0.551 \\ {\scriptsize [0.500, 0.601]}} & \shortstack{0.955 \\ {\scriptsize [0.867, 1.044]}} & \shortstack{0.551 \\ {\scriptsize [0.500, 0.601]}} \\
+        \shortstack[l]{Particle filter \\ {\scriptsize\phantom{[0]}}} & \shortstack{0.562 \\ {\scriptsize [0.517, 0.608]}} & \shortstack{0.427 \\ {\scriptsize [0.392, 0.462]}} & \shortstack{0.686 \\ {\scriptsize [0.611, 0.760]}} & \shortstack{0.538 \\ {\scriptsize [0.486, 0.589]}} \\
+        \shortstack[l]{PEnKF \\ {\scriptsize\phantom{[0]}}} & \shortstack{0.411 \\ {\scriptsize [0.367, 0.454]}} & \shortstack{0.227 \\ {\scriptsize [0.204, 0.249]}} & \shortstack{0.529 \\ {\scriptsize [0.464, 0.594]}} & \shortstack{0.323 \\ {\scriptsize [0.283, 0.364]}} \\
+        \shortstack[l]{GEnKF \\ {\scriptsize\phantom{[0]}}} & \shortstack{\textbf{0.341} \\ {\scriptsize [0.285, 0.397]}} & \shortstack{\textbf{0.170} \\ {\scriptsize [0.145, 0.195]}} & \shortstack{\textbf{0.384} \\ {\scriptsize [0.319, 0.449]}} & \shortstack{\textbf{0.193} \\ {\scriptsize [0.162, 0.224]}} \\
+        \midrule
+        \multicolumn{5}{l}{\emph{Paired difference between methods [95\% confidence interval]}} \\
+        \shortstack[l]{GEnKF $-$ PEnKF \\ {\scriptsize\phantom{[0]}}} & \shortstack{$-0.069$ \\ {\scriptsize [$-0.105$, $-0.033$]}} & \shortstack{$-0.057$ \\ {\scriptsize [$-0.079$, $-0.035$]}} & \shortstack{$-0.145$ \\ {\scriptsize [$-0.180$, $-0.110$]}} & \shortstack{$-0.130$ \\ {\scriptsize [$-0.157$, $-0.104$]}} \\
+        \shortstack[l]{GEnKF $-$ Particle filter \\ {\scriptsize\phantom{[0]}}} & \shortstack{$-0.221$ \\ {\scriptsize [$-0.269$, $-0.173$]}} & \shortstack{$-0.257$ \\ {\scriptsize [$-0.289$, $-0.225$]}} & \shortstack{$-0.301$ \\ {\scriptsize [$-0.357$, $-0.246$]}} & \shortstack{$-0.345$ \\ {\scriptsize [$-0.384$, $-0.306$]}} \\
+        \shortstack[l]{PEnKF $-$ Particle filter \\ {\scriptsize\phantom{[0]}}} & \shortstack{$-0.152$ \\ {\scriptsize [$-0.189$, $-0.114$]}} & \shortstack{$-0.200$ \\ {\scriptsize [$-0.227$, $-0.174$]}} & \shortstack{$-0.156$ \\ {\scriptsize [$-0.220$, $-0.092$]}} & \shortstack{$-0.214$ \\ {\scriptsize [$-0.267$, $-0.162$]}} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Accuracy of the distribution of $\vx_{10}$ over 30 simulated datasets,
+    when each method sees all ten time points or only the final one. RMSPE is the
+    root mean squared error of the posterior mean over the grid, and CRPS is
+    averaged over the grid. Each entry is a mean over datasets, with its 95\%
+    confidence interval in brackets below, using the $0.975$ quantile of the $t$
+    distribution with 29 degrees of freedom. The best mean in each column is in
+    bold. The prior ignores the observations, so it is the same in both column
+    groups. The paired differences are taken within each dataset, where all
+    methods see the same data, and a negative value means that the first method
+    has the smaller error.}
+    \label{tab:replicates}
+\end{table}
+
 
 
 % Also... if time, compare directly to running HMC with that target.
 
-\section{Discussion and Proposed extensions}
+\section{Discussion}
+
+
+% In the rainfall simulation we are currently using a linear model, with Gaussian
+% prior on the latent state $x$. In such a case, the EnKF update is asymptotically
+% exact \cite{evensen2009}, and so a very high particle versin of the GEnKF could
+% serve as the ground truth.
+
+While this qualifying paper expands the experimental coverage of the GEnKF and
+PEnKF inference methods, our experiments are by no means exhaustive. Onen big
+limitation, is in our lack of a complete picture of ``ground truth''. While we
+know the latent state used by the true data generating process, we would ideally
+be able to compare the GEnKF and the PEnKF to a sample from the true filtering
+distribution.  A very large particle PEnKF with a large quadrature approximatin
+of the PEnKF likelihood could be used for such a ground truth.  Furthermore, in
+our existing experiments we note that the GEnKF took significantly longer to run
+(on the order of minutes) compared to the particle filter and and PEnKF (order
+of seconds).  Future experiments could meausure and control for this more
+rigorously. The last experimental condition that we may consider changing is
+breaking the linear dynamics.  Under linear dynamics, as mentioned, the EnKF is
+asymptotically exact. This translates to asymptotic exactness of the PEnKF
+update as each update is performed on a Gaussian ensemble (although we lose this
+exactness if we use an approximatin of the likelihood). However, it does not
+translate to asymptotic exactness of the GEnKF, because it's EnKF update is
+performed on a mixture of normals.  Nevertheless, we hypothesize that under
+highly non-linear dynamics both the GEnKF and PEnKF will perform significantly
+worse.
+
+% Proposed extensions
+
+One potential methodological extension is to use the analytic form of the
+Kalman filter for the PEnKF when dynamcis are linear. While this would require
+carrying a dense covariance matrix instead of a particle ensemble, there may
+be a sweet spot in moderate dimensions where this method has less variability
+than ensemble methods, but dimensionality is not too high to make instatiating
+this matrix infeasible. Such a method would not work naively for the GEnKF,
+because 
+
+% We also propose one simple methodological extension that appears to have been
+% missed by the original authors. When the dynamics are linear, the Kalman filter
+% is actually exact. Thus instead of using an EnKF update in the PEnKF, we can
+% simply use the anlaytic Kalman filter update, and instead of keeping track of
+% ensemble.......
+
 % The key point of the EnKF is that it approximates a transport map from 
 % prior to posterior, by using that which we would use for Gaussian. We could 
 % attempt to define a stochastic transport map for any such conjugate family  
@@ -594,11 +744,19 @@ from all ten time points.
 % Improvements could be made by tuning... this would be tedious but would
 % provide the fairest comparison
 
-% Future experiments could standardize by compute budget, these experiments
-% gave very different compute budgets to each method
+% Future experiments
+% - standardize compute budget
+% - break linearity
+% - larger simulation study
 
 \section{Conclusion}
-
+In this qualifying paper we provide a critique and empirical investigation of the
+GEnKF and PEnKF that were proposed in \cite{katzfuss2020}. These two methods combine
+SMC with the ensemble Kalman filter to tackle state-space models with
+both high-dimensional latent variables and parameters that are not well
+described by state augmentation. Our main methodological critiques focus on
+the restrictiveness of the assumptions required to implement these methods,
+and the difficulty in implementing these methods
 
 % Planning notes
 % Not really using ensemble Kalman updates? N \times M issue
@@ -830,5 +988,51 @@ so for $\theta > 1$
     \log p(\theta) &= 20\log 10 - \log\Gamma(20) + 19\log(\theta - 1) - 10(\theta - 1) \\
     \nabla_\theta \log p(\theta) &= \frac{19}{\theta - 1} - 10
 \end{align}
+
+\section{Effective sample sizes over repeated seeds}\label{sec:ess_replicates}
+Table~\ref{tab:replicates-ess} reports the effective sample size of the importance
+weights for the particle filter and the PEnKF over the same $30$ datasets as
+Table~\ref{tab:replicates}.
+
+\begin{table}[tbp]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabular}{lcccc}
+        \toprule
+        & \multicolumn{2}{c}{No resampling} & \multicolumn{2}{c}{Resampling} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
+        $t$ & Particle filter & PEnKF & Particle filter & PEnKF \\
+        \midrule
+        \shortstack[l]{1 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.02 \\ {\scriptsize [0.99, 1.05]}} & \shortstack{2.18 \\ {\scriptsize [1.61, 2.75]}} & \shortstack{1.06 \\ {\scriptsize [0.99, 1.14]}} & \shortstack{2.36 \\ {\scriptsize [1.86, 2.86]}} \\
+        \shortstack[l]{2 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.05 \\ {\scriptsize [0.98, 1.13]}} & \shortstack{1.60 \\ {\scriptsize [1.35, 1.85]}} & \shortstack{1.06 \\ {\scriptsize [0.99, 1.12]}} & \shortstack{20.27 \\ {\scriptsize [12.21, 28.32]}} \\
+        \shortstack[l]{3 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.30 \\ {\scriptsize [1.13, 1.47]}} & \shortstack{1.05 \\ {\scriptsize [1.00, 1.11]}} & \shortstack{11.82 \\ {\scriptsize [6.56, 17.08]}} \\
+        \shortstack[l]{4 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.35 \\ {\scriptsize [1.15, 1.56]}} & \shortstack{1.09 \\ {\scriptsize [1.01, 1.18]}} & \shortstack{10.89 \\ {\scriptsize [6.71, 15.07]}} \\
+        \shortstack[l]{5 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.21 \\ {\scriptsize [1.05, 1.36]}} & \shortstack{1.07 \\ {\scriptsize [0.96, 1.18]}} & \shortstack{9.22 \\ {\scriptsize [4.95, 13.50]}} \\
+        \shortstack[l]{6 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.20 \\ {\scriptsize [1.04, 1.37]}} & \shortstack{1.12 \\ {\scriptsize [1.02, 1.21]}} & \shortstack{10.40 \\ {\scriptsize [5.57, 15.22]}} \\
+        \shortstack[l]{7 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.20 \\ {\scriptsize [1.07, 1.33]}} & \shortstack{1.21 \\ {\scriptsize [1.07, 1.36]}} & \shortstack{13.40 \\ {\scriptsize [6.68, 20.11]}} \\
+        \shortstack[l]{8 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.27 \\ {\scriptsize [1.09, 1.44]}} & \shortstack{1.14 \\ {\scriptsize [1.02, 1.27]}} & \shortstack{12.26 \\ {\scriptsize [7.28, 17.25]}} \\
+        \shortstack[l]{9 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.01 \\ {\scriptsize [0.99, 1.03]}} & \shortstack{1.28 \\ {\scriptsize [1.08, 1.49]}} & \shortstack{1.17 \\ {\scriptsize [1.04, 1.29]}} & \shortstack{13.70 \\ {\scriptsize [7.09, 20.32]}} \\
+        \shortstack[l]{10 \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.00 \\ {\scriptsize [1.00, 1.00]}} & \shortstack{1.22 \\ {\scriptsize [0.97, 1.47]}} & \shortstack{1.13 \\ {\scriptsize [1.04, 1.23]}} & \shortstack{12.61 \\ {\scriptsize [8.00, 17.22]}} \\
+        \midrule
+        \shortstack[l]{Mean over $t$ \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.01 \\ {\scriptsize [1.00, 1.02]}} & \shortstack{1.38 \\ {\scriptsize [1.29, 1.48]}} & \shortstack{1.11 \\ {\scriptsize [1.08, 1.15]}} & \shortstack{11.69 \\ {\scriptsize [10.30, 13.09]}} \\
+        \shortstack[l]{Mean over $t$, ESS$/n$ \\ {\scriptsize\phantom{[0]}}} & \shortstack{0.001 \\ {\scriptsize [0.001, 0.001]}} & \shortstack{0.014 \\ {\scriptsize [0.013, 0.015]}} & \shortstack{0.001 \\ {\scriptsize [0.001, 0.001]}} & \shortstack{0.117 \\ {\scriptsize [0.103, 0.131]}} \\
+        \shortstack[l]{Single update \\ {\scriptsize\phantom{[0]}}} & \shortstack{1.02 \\ {\scriptsize [0.99, 1.05]}} & \shortstack{2.58 \\ {\scriptsize [1.85, 3.31]}} & \shortstack{1.02 \\ {\scriptsize [0.99, 1.05]}} & \shortstack{2.58 \\ {\scriptsize [1.85, 3.31]}} \\
+        \shortstack[l]{Single update, ESS$/n$ \\ {\scriptsize\phantom{[0]}}} & \shortstack{0.001 \\ {\scriptsize [0.001, 0.001]}} & \shortstack{0.026 \\ {\scriptsize [0.018, 0.033]}} & \shortstack{0.001 \\ {\scriptsize [0.001, 0.001]}} & \shortstack{0.026 \\ {\scriptsize [0.018, 0.033]}} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Effective sample size (ESS) of the importance weights over 30
+    simulated datasets, computed before any resampling at each step. Each entry
+    is a mean over datasets, with its 95\% confidence interval in brackets below
+    (as in Table~\ref{tab:replicates}), which is not truncated at the lower bound
+    of $1$ for the ESS. The particle filter uses $n = 1000$ particles, and the
+    PEnKF uses $n = 100$ particles with $m = 10$ ensemble members each. With
+    resampling, the weights are reset to equal whenever the ESS falls below
+    $0.66n$. The rows below the line average the ESS over the ten time steps
+    within each dataset, and give the ESS after a single update at $T=10$, which
+    does not depend on resampling. Each is also given as a fraction of $n$. The
+    GEnKF has equally weighted members, so it has no ESS.}
+    \label{tab:replicates-ess}
+\end{table}
 
 \end{document}
