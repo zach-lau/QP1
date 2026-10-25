@@ -11,10 +11,27 @@
 \begin{document}
 \maketitle
 
+\begin{abstract}
+Recent research has proposed combining ensemble Kalman Filter methods with
+Sequential Monte Carlo methods in order to perform Bayesian inference in
+high-dimensional state space models, while relaxing normality assumptions on
+priors and the data-generating process. In this qualifying paper, we provide a
+critique of existing methods to do so, and of experiments found in the existing
+literature. Furthermore, we perform a simulation studied to address these
+experimental gaps. Our main theoretical critique concerns the practicality of
+implementing these algorithms. Despite these limitations, experimental evidence
+from our simulation study shows that when these algorithms can be implemented,
+they are effective tools for inference with at least a moderate dimensional
+latent state ($d=100$), and succesfully avoid the extreme weight-degeneracy
+found with a Sequential Monte Carlo approach. Proposed extension include using
+the EnKF as a proposal distribution within a Sequential Monte Carlo framework
+to ensure asymptotic consistency.
+\end{abstract}
+
 % Problem setup
 \section{Introduction}
 State-space models are a widely applied and useful tool whenever we are
-modelling the evolution of some sort of state over time given observations
+modelling the evolution of some sort of state over time, given observations
 which are dependent on the underlying state. Examples include modelling
 the behaviour of animals given tracking data, the location
 of a plane given radar readings, or the state of a climate system given
@@ -43,34 +60,37 @@ required for an accurate representation of the distribution is often much lower
 than the dimension of the state space. This enables a low-rank representation
 of the covariance matrix.
 
-The ensemble Kalman filter is state of the art for high dimensional
+The ensemble Kalman filter represents the state of the art for high dimensional
 climate based state space models. However, it is still constrained by the
 Gaussian constraints on the observation noise and the modelling noise introduced
 during the forecasting steps. This restraint restricts us, for example, from
-modelling skewed or heavy-tailed distributions such as rainfall. In
-low-dimensions, these constraints can be relaxed by Markov Chain Monte Carlo
-(MCMC), Sequential Monte Carlo (SMC) methods \cite{chopin2020} or Mixture Kalman
-Filter \cite{chen2000}. These methods typically work by propogating an ensemble
-of weighted particles through time. Unfortunately, in high dimensions these
-techniques are known to suffer from weight degeneracy, wherein a single particle
-is assigned all of the weight of the ensemble.
+performing inference on models with skewed or heavy-tailed distributions such as
+rainfall. In low-dimensions, these scenarios can be approached by Markov Chain
+Monte Carlo (MCMC), Sequential Monte Carlo (SMC) methods \cite{chopin2020} or
+Mixture Kalman Filter \cite{chen2000}. These methods typically work by
+propogating an ensemble of weighted particles through time. Unfortunately, in
+high dimensions these techniques are known to suffer from weight degeneracy,
+wherein a single particle is assigned all of the weight of the ensemble, which
+makes them useless for estimating uncertainty.
 
 \section{Methodology}
 
 \subsection{GEnKF, PEnKF}
 In \cite{katzfuss2020} the authors propose combining ensemble Kalman methods
-with particle methods. In particular, the state is divided into two parts,
+with SMC methods. In particular, the state is divided into two parts,
 a high-dimensional part which is well modelled by Gaussian model dynamics,
 and a low dimensional part which is not modelled well by Gaussian dynamics.
 For example, the high-dimensional section may consist of a large spatial grid,
 whereas the low dimensional part of the state space may consist of a set of
 parameters over which we wish to perform Bayesian inference. Their key
-algorithmic contribution is to use an ensemble Kalman filter to model the
-high-dimensional portion of the state, but to do so within an SMC framework.
-This reduces the effective dimensionality of the SMC problem, allowing one to
-incorporate both high-dimensional latent spaces, as well as non-Gaussian
-parameters -- a combination previously inaccessible to either of SMC methods or
-ensemble Kalman filter methods on their own.
+algorithmic contribution is to use an ensemble Kalman filter to propogate
+uncertainty about the high-dimensional portion of the state, while using SMC 
+and MCMC techniques to account for non-Gaussian posteriors over specific
+parameters, or in the noise distribution. This reduces the effective
+dimensionality of the SMC problem, allowing one to incorporate both
+high-dimensional latent spaces, as well as non-Gaussian parameters -- a
+combination previously inaccessible to either of SMC methods or ensemble Kalman
+filter methods on their own.
 
 \subsubsection{Hierarchical State Space Models}
 The generic hierarchical state space model considered in \cite{katzfuss2020} is
@@ -81,7 +101,7 @@ shown below.
     \vy | \vx_t, \mathbf\theta_t &\sim \Norm_{m_t}(\mathbf H_t \vx_t, \mathbf R_t) \\
     \vz_t | \vy_t, \mathbf\theta_t &\sim f_t(\vz_t | \vy_t, \mathbf\theta_t) \label{eq:transform}
 \end{align}
-This model extends the model typically used in Kalman filtering probmes by
+This model extends that in which Kalman filtering is typically applied by
 introducing a non-Gaussian parameter in line~\ref{eq:prior}, and a transformation
 which can account for non-normality in the observations in line~\ref{eq:transform}.
 Due to these extensions, a traditional ensemble Kalman filter is inappropriate.
@@ -98,10 +118,10 @@ model provided in \cite{katzfuss2020} and based on
     \vy_t | \vx_t &\sim \Norm_{m_t}(\mathbf H_t \vx_t , \sigma^2_t \mathbf I_{m_t})  \\
     z_{t,l} | \vy_t ,\theta_t &= y_{t,l}^{\theta_t} \mathbf{1}_{\{y_{t,l} > 0\}}, \quad l = 1, \ldots, m_t 
 \end{align}
-This model reflects a series of spatially correlated series of stations. The
-rainfall at each station is log-normally distributed, and truncated below by
-$0$. Futhermore, the rainfall at all locations is modulated by a time-dependent
-global parameter $\theta_t$. 
+This model reflects a large group of locations with spatially correlated
+rainfall, and a series of stations at some, but not all, locations. Futhermore,
+the rainfall at all locations is modulated by a time-dependent global parameter
+$\theta_t$. Our high dimensional latent state in this example is $\vx$.
 \end{example}
 
 \subsubsection{PEnKF}
@@ -138,9 +158,10 @@ estimating the likelihood term in step~\ref{step:likelihood}, and sampling from
 the conditional distribution in step~\ref{step:sample}. In particular,
 \cite{katzfuss2020} suggest using a normal approximation to the forecast
 distribution $p(\tilde\vx^i_t | \vz_{t-1})$ based on an estimate of the mean
-and covariance of the ensemble. Practically, we are also limited by the number of
-$\theta$ particles $N$ we can use, since each particle requires its own
-ensemble of $M$ further particles.
+and covariance of the ensemble. \cite{katzfuss2020} also use the EnKF to perorm
+approximate sampling in \ref{step:sample}. Practically, we are also limited by
+the number of $\theta$ particles $N$ we can use, since each particle requires
+its own ensemble of $M$ further particles.
 % Suggested - use EnKF to approximate likelihood here
 
 \subsubsection{GEnKF}
@@ -170,10 +191,11 @@ depend on $\theta_t$, as in Example~\ref{ex:rainfall}.
 Figure~\ref{fig:hssm-dag}, shows a partial causal graph for the hierarchical
 state space model, and elucidates how these conditions imply forecast
 independence.  Condition~\ref{cond:conditional} is more complicated to verify,
-and also less clear cut as tractability to sampling depends on what inference
+and also less clear cut, as tractability to sampling depends on what inference
 algorithm we are using. It most straightforward to show in the case of conjugate
-priors, as happens in example~\ref{ex:rainfall}. The resulting algorithm is
-described below
+priors, as happens in example~\ref{ex:rainfall} for the 
+draw from $p(\vy_t | \vx_t, \mathbf\theta_t, \vz_{1:t})$. The resulting
+algorithm is described below.
 \begin{enumerate}
     \item Sample an ensemble $(\vx^i_0, \theta^i_0)$ for $i=1,\ldots M$
     from the prior at $t=0$
@@ -268,23 +290,23 @@ The latter can be done by assuming $\theta_t$ and $\theta_{t-1}$ are independent
 \subsection{Criticism of Existing Literature and Method}\label{sec:criticism}
 The use of the EnKF within Bayesian state space-space models is certainly a
 powerful idea which deserves further investigation. It successfully attacks
-the central question of weight degeneracy in state-space models, although at
-the cost of introducing bias. Unfortunately, this method as it currently stands
-is extremely difficult to actually implement.
+the central question of weight degeneracy inference on state-space models,
+although at the cost of introducing bias. Unfortunately, this method as it
+currently stands is extremely difficult to actually implement.
 
 Firstly, as the authors in \cite{katzfuss2020} mention, but do not emphasize,
 the GEnKF has only been shown to be reasonably implementable under fairly
 restrictive circumstances. For example, if we work in the framework of
-Conditions~\ref{cond:conditional} and \ref{cond:forecast}, we must abandon
+Conditions~\ref{cond:forecast} and ~\ref{cond:conditional}, we must abandon
 very reasonable modelling choices such as using our parameter $\theta$ in
-our actual model, or using the same $\theta$ over all time-steps. Furthermore,
-the authors fail to discuss the difficulty of actually sampling from the
-conditional distributions $p(\vy|\vx,\vz,\mathbf\theta)$ and
+the dynamic model $\mathcal M$, or using the same $\theta$ over all time-steps.
+Furthermore, the authors fail to discuss the difficulty of actually sampling
+from the conditional distributions $p(\vy|\vx,\vz,\mathbf\theta)$ and
 $p(\theta|\vx,\vy,\vz)$. Several problems may occur. Firstly, if $\vy$ is
 moderately high dimensional and cannot be decomposed by dimensions, we still
-have a nested high-dimensional sampling problem. Even if we have independence 
-of $y_i$, and access to the conditinal density, we generally will still need
-to perform MCMC to sample from this density. As this is done inside the Gibb's
+have a nested high-dimensional sampling problem. Even if we have independence of
+$y_i$, and access to the conditional density, we generally will still need to
+perform MCMC to sample from this density. As this is done inside the Gibb's
 sampler, this becomes a nested MCMC. We face exactly the same problem sampling
 from $p(\theta|\vx,\vy,\vz)$. The requirements for nested MCMC significantly
 slows down the sampling procedure, and introduces significantly more tuning
@@ -307,12 +329,12 @@ truth for the posterior by running standard MCMC. However, in doing do so they
 remove many of the important aspects of the state-space model, such as
 information sharing between time points, or potential non-linear effects of
 the dynamic model. The final peculiar choice made by the authors is to focus
-their quantiative and qualitive results on the quantity $x 1_{x > 0}$. While
+their quantiative and qualitive results on the quantity $x \1_{x > 0}$. While
 this is justified as being an estimate of the true rainfall, and in some sense
 practical, it is perhaps more enlightening to look at inference of the latent
 state $x$. In particular, since the observations are truncated below at $0$,
 the most difficult coordinates to estimate, and a true test of the inference
-method's capabilities is the estimation of the latent state at these ``dry''
+method's capabilities, is the estimation of the latent state at these ``dry''
 locations.
 
 In general, the authors also fail to run experiments in many key scenarios of
@@ -320,12 +342,12 @@ interest, or report all metrics of interest. Firstly we note that the GEnKF
 is severly undertested. It is only tested in the rainfall model, which does 
 not include a Gibb's step for $\theta$, is only single-step, and does not
 test the filter under any model dynamics (let alone non-linear dynamics).
-The PEnKF is somewhat more well tested by the cloud model, and is compared
-with modified version of a standard particle filter. However, it is
-never comopared directly to the GEnKF in any experiment. Furthermore, the
-analysis of the PEnKF could be improved by evaluating the weight degenarcy
-problem with quantitative tools such as the importance sampling ESS
-\cite{chopin2020}.
+The PEnKF is somewhat more well tested by the cloud model in
+\cite{katzfuss2020}, and is compared with modified version of a standard
+particle filter. However, it is never comopared directly to the GEnKF in any
+experiment. Furthermore, the analysis of the PEnKF could be improved by
+evaluating the weight degenarcy problem with quantitative tools such as the
+importance sampling ESS \cite{chopin2020}.
 
 % Good
 % Actually PEnKF is somewhat more flexible than authors suggest under linear
@@ -400,12 +422,11 @@ poseterior, the true latent state is shown for comparison. Initial results
 are fairly positive for both GEnKF and PEnKF. Qualitiatively they match the
 true latent state closely and 95\% credible intervals have reasonable coverage.
 The PEnKF seems to have a bit more spatial variability. We conjecture that this
-may be due to the lower number of $\theta$ particles used, which introduces
-correlation between elements of the respective ensembles. Furthermore,
+may be due to the effects of modest weight degeneracy. Furthermore,
 we expect some differences in the distribution of the PEnKF from the GEnKF
-due to the approximation of the likelihood we have used.
+due to the approximation of the likelihood we have used in the PEnKF.
 
-Quantitaitively, GEnKF
+Quantitatively, GEnKF
 and PEnKF both perform much better than the particle filter. The RMSPE measures
 the accuracy of the posterior-mean as a point-wise estimate averaged over space.
 The Continuous Ranked Probability Score (CRPS) gives an evaluation of the entire
@@ -519,8 +540,9 @@ resampling, the PEnKF is still able to capture the distribution of $\theta$
 reasonably well, especially considering that $\theta$ is 1-dimensional in our
 study. Fluctuations in the ESS for the PEnKF may be due to how unexpected
 observations are at that time point. Very unexpected observations cause large
-shifts in the distribution which are difficult to capture by reweighting. We
-answer this research question with a weak affirmative.
+shifts in the distribution which are difficult to capture by reweighting.
+We conclude that the PEnKF does moderately well at addressing weight degeneracy,
+although it could be better.
 
 \begin{table}[ht]
     \centering
@@ -565,27 +587,27 @@ answer this research question with a weak affirmative.
 Finally we address the question of how restrictive the forecast independence
 conditions are, particularly the requirement for independent $\theta_t$. To
 probe this question, we propose the following hypothesis: if $\theta_t$ are
-independent, then a state-space model is no better than a model which treats
-each time-step independently. We test the following corollary of the hypothesis:
-if the $\theta_t$ are independent, then an estimator which sees past time points
-will do no better than an estmator that doesn't. To this end, we run a particle
-filter, GEnKF and PEnKF but only at time $T=10$ without observationsn from 
-$T=1, \ldots, 9$, and compare the performance of the estimate of the latent
-state $x$ to that from a particle filter, GEnKF and PEnKF which see observations
-from all ten time points.
+independent, then a state-space model is not meaningfully more expressive than a
+model which treats each time-step independently. We test the following corollary
+of the hypothesis: if the $\theta_t$ are independent, then an estimator which
+sees past time points will not do significantly better than an estmator that
+doesn't. To this end, we run a particle filter, GEnKF and PEnKF but only at time
+$T=10$ without observations from $T=1, \ldots, 9$, and compare the performance
+of the estimate of the latent state $x$ to that from a particle filter, GEnKF
+and PEnKF which see observations from all ten time points.
 
-Plots of the posterior 95\% credible interavls for each method are showin in 
+Plots of the posterior 95\% credible intervals for each method are showin in 
 Figure \ref{fig:single-update-bands}. Again, we have significant weight
-degeneracy for the particle filter. Qualitatively, the particle filter and
-PEnKF are much worse than their counterparts with access to the full dataset.
-It is harder to tell for GEnKF, as both actually provide reasonable posterior
-means. The poor performance of the PEnKF and particle filter is partly
-explained by weight degenercy and the significant distance between prior and
-posterior. Nevertheless, the GEnKF, which is not susceptible to this problem,
-shows a large quantitive penalty from only seeing the last data point. We
-conclude that observations from previous time points do have a small but
-noticeable impact on inference in this model, and thus forecast independence
-is not necessarily a completely destructive constraint.
+degeneracy for the particle filter. Qualitatively, the particle filter and PEnKF
+are much worse than their counterparts with access to the full dataset, although
+the poor performance of the PEnKF and particle filter is partly explained by
+weight degeneracy and the significant distance between prior and posterior.  It
+is harder to tell for GEnKF, as both actually provide reasonable posterior
+means. Nevertheless, the GEnKF, shows a large quantitive penalty from only
+seeing the last data point. We conclude that observations from previous time
+points do have a small but noticeable impact on inference in this model, and
+thus forecast independence is not necessarily a completely destructive
+constraint.
 
 \begin{figure}[ht]
     \centering
@@ -615,24 +637,21 @@ is not necessarily a completely destructive constraint.
 
 \begin{table}[ht]
     \centering
-    \begin{tabular}{lcccccc}
+    \begin{tabular}{lcccc}
         \toprule
-        & \multicolumn{2}{c}{All ten time points} & \multicolumn{4}{c}{Final time point only} \\
-        \cmidrule(lr){2-3} \cmidrule(lr){4-7}
-        Method & RMSPE & CRPS & RMSPE & CRPS & ESS & ESS$/n$ \\
+        & \multicolumn{2}{c}{All ten time points} & \multicolumn{2}{c}{Final time point only} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
+        Method & RMSPE & CRPS & RMSPE & CRPS \\
         \midrule
-        Particle filter & 0.420 & 0.341 & 0.821 & 0.634 & 1.00 & 0.001 \\
-        PEnKF & 0.257 & 0.153 & 0.446 & 0.269 & 1.47 & 0.015 \\
-        GEnKF & \textbf{0.184} & \textbf{0.120} & \textbf{0.271} & \textbf{0.154} & -- & -- \\
+        Particle filter & 0.420 & 0.341 & 0.821 & 0.634 \\
+        PEnKF & 0.257 & 0.153 & 0.446 & 0.269 \\
+        GEnKF & \textbf{0.184} & \textbf{0.120} & \textbf{0.271} & \textbf{0.154} \\
         \bottomrule
     \end{tabular}
     \caption{Accuracy of the distribution of $\vx_{10}$ when each method sees
     all ten time points or only the final one. RMSPE is the root mean squared
     error of the posterior mean over the grid, and CRPS is averaged over the
-    grid. The best RMSPE and CRPS in each column is in bold. For the final time
-    point only, we also give the effective sample size (ESS) of the importance
-    weights, and the ESS as a fraction of the number of particles $n$. The GEnKF
-    has equally weighted members, so it has no ESS.}
+    grid. The best RMSPE and CRPS in each column is in bold.}
     \label{tab:single-update-metrics}
 \end{table}
 
@@ -695,24 +714,31 @@ and agree with our single-seed experiment from the previous sections.
 % serve as the ground truth.
 
 While this qualifying paper expands the experimental coverage of the GEnKF and
-PEnKF inference methods, our experiments are by no means exhaustive. Onen big
+PEnKF inference methods, our experiments are by no means exhaustive. One big
 limitation, is in our lack of a complete picture of ``ground truth''. While we
 know the latent state used by the true data generating process, we would ideally
 be able to compare the GEnKF and the PEnKF to a sample from the true filtering
-distribution.  A very large particle PEnKF with a large quadrature approximatin
+distribution.  A very large particle PEnKF with a large quadrature approximation
 of the PEnKF likelihood could be used for such a ground truth.  Furthermore, in
 our existing experiments we note that the GEnKF took significantly longer to run
 (on the order of minutes) compared to the particle filter and and PEnKF (order
-of seconds).  Future experiments could meausure and control for this more
-rigorously. The last experimental condition that we may consider changing is
-breaking the linear dynamics.  Under linear dynamics, as mentioned, the EnKF is
-asymptotically exact. This translates to asymptotic exactness of the PEnKF
-update as each update is performed on a Gaussian ensemble (although we lose this
-exactness if we use an approximatin of the likelihood). However, it does not
-translate to asymptotic exactness of the GEnKF, because it's EnKF update is
-performed on a mixture of normals.  Nevertheless, we hypothesize that under
-highly non-linear dynamics both the GEnKF and PEnKF will perform significantly
-worse.
+of seconds). We have already accounted for this difference to some degree by
+using only $100$ particles in the GEnKF, as opposed to $1000$ particles for the
+particle filter and PEnKF. However, future experiments could meausure and
+control for this difference more rigorously.  In particular, it would also be
+useful to consider using quadrature for the PEnKF likelihood, which would take
+longer, but give a more accurate weights. The last experimental condition that
+we may consider changing is breaking the linear dynamics.  Under linear
+dynamics, the EnKF is asymptotically exact. This translates to asymptotic
+exactness of the PEnKF update as each update is performed on a Gaussian ensemble
+(although we lose this exactness if we use an approximation of the likelihood).
+However, it does not translate to asymptotic exactness of the GEnKF, because
+it's EnKF update is performed on a mixture of normals.  Nevertheless, we
+hypothesize that under highly non-linear dynamics both the GEnKF and PEnKF will
+perform significantly worse. The last experimental limitation we note is the the
+inability of our single timestep experiment to distinguish between inadequacy of
+the inference method, from the model. This could be improved by using more
+particles and longer computes times to overcome inadequacies in inference.
 
 % Proposed extensions
 
@@ -722,7 +748,52 @@ carrying a dense covariance matrix instead of a particle ensemble, there may
 be a sweet spot in moderate dimensions where this method has less variability
 than ensemble methods, but dimensionality is not too high to make instatiating
 this matrix infeasible. Such a method would not work naively for the GEnKF,
-because 
+because in the GEnKF the EnKF update is applied over the marginal distribution
+of $\vx$, which is no longer normal, whereas in the PEnKF it is applied to the
+conditional distribution, which is normal.
+
+Another relatively simple extension to the existing methodology is to use
+the EnKF update as a proposal distribution for the state update in an SMC filter.
+This method would allow for asymptotic consistency as the number of particles
+goes to infinity, while still addressing the weight degeneracy evident in the
+bootstrap particle filter. An outline of this proposed algorithm is given below
+\begin{enumerate}
+    \item Sample $(\theta_i, \vx_i)$ from the prior
+    \item For $t=1,\ldots,T$
+    \begin{enumerate}
+        \item For each particle $i$
+        \begin{enumerate}
+            \item Draw a new proposal $\theta$ from $p(\theta_t | \theta_{t-1})$
+            \item Propogate each element of the ensemble under
+            the model; $\tilde \vx_i = \mathcal M(\vx_{i}; \theta^i_t)$
+        \end{enumerate}
+        \item Estimate the mean and covariance of the forecast distribution using
+        the entire ensemble
+        \item Compute a global EnKF gain matrix $K$ based on the estimates from
+        the entire ensemble
+        \item For each particle
+        \begin{enumerate}
+            \item Propose $\vx^i_{t-1} \sim q(\vx_i) = \Norm(\mu_i, \Sigma_i)$, where
+            \begin{align}
+                \mu_i  &= x^i_t + K^{-1}(y - Hx) \\
+                \Sigma_i &= \mathbf Q + K^{-1}\mathbf R
+            \end{align},
+            and $y$ refers the the unnoised observation
+            \item Update weights according to 
+            \begin{align}
+                w^i_t &= w^i_{t-1}\mathcal L(\vx_i, \theta_i ; \vz_i)\frac{p(\vx_i)}{q(\vx_i)}
+            \end{align},
+            where $p(\vx_i) = \Norm(\vx_i; \tilde \vx^i_t, \mathbf Q)$ is the density
+            of the bootstrap proposal based soley on model dynamics
+        \end{enumerate}
+    \end{enumerate}
+\end{enumerate}
+One potential weakness of this method is that the marginal uncertainty of $\vx$
+will typically overstate the conditional uncertainty conditioned on $\theta_t^i$
+(which is what we would ideally use). However, in the case of forecast
+independence, they are actually equivalent, and this proposed algorithm may
+perform well. In such cases, we conjecute that it may be significantly faster
+than the GEnKF.
 
 % We also propose one simple methodological extension that appears to have been
 % missed by the original authors. When the dynamics are linear, the Kalman filter
@@ -755,8 +826,33 @@ GEnKF and PEnKF that were proposed in \cite{katzfuss2020}. These two methods com
 SMC with the ensemble Kalman filter to tackle state-space models with
 both high-dimensional latent variables and parameters that are not well
 described by state augmentation. Our main methodological critiques focus on
-the restrictiveness of the assumptions required to implement these methods,
-and the difficulty in implementing these methods
+the restrictiveness of the assumptions required to implement the GEnKF, and the
+difficulty of the nested sampling or quadrature required to implement both
+methods. Furthermore, the numerical experiments in the original paper
+\cite{katzfuss2020} leave many basic questions unanswered. Most importantly,
+there is no experimental analysis of the GEnKF with a separate parameter layer,
+no head to head comparison of GEnKF and PEnKF on the same model, no analysis
+of GEnKF in a model with more than one time step, and limited experimental
+discussion of the weight degeneracy problem.
+
+We explore these experimental gaps using a simuation study that extends the
+rainfall model used in \cite{katzfuss2020}.  Our experimental results are
+relatively positive for the GEnKF and the PEnKF.  Indeed we find that both
+perform much better in terms of RMSPE and CRPS than the particle filter, which
+suffers from sever weight degeneracy. The GEnKF also performs better than the
+PEnKF. However, further work is needed to identify if this is because of
+approximations used in the PEnKF likelihood, the tuning parameters chosen, or an
+inherent relative weakness in the PEnKF method. Additionally, the importance
+sampling ESS was used to quantitativley analyze the weight degeneracy problem in
+the PEnKF. While the PEnKF maintained a non-negligeable relative ESS, 
+resampling was required at almost every step to prevent significant
+degeneration. Lastly, we investigate if the forecast independence conditions
+are overly restrictive on the state-space model. We find that restricting the
+GEnKF and PEnKF to only the last time-step reduces their performance. This
+provides evidence, though not proof, that the class of state-space models
+with forecast independence is meaningfully more expressive than completely
+assuming temporal independence, although we maintain that it is still highly
+restrictive 
 
 % Planning notes
 % Not really using ensemble Kalman updates? N \times M issue
