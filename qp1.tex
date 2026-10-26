@@ -5,7 +5,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta}
 \author{Zachary Lau}
-\title{Extended Ensemble Kalman Methods}
+\title{A Critique and Simulation Study on Extended Ensemble Kalman Methods}
 \date{\today}
 
 \begin{document}
@@ -424,7 +424,9 @@ true latent state closely and 95\% credible intervals have reasonable coverage.
 The PEnKF seems to have a bit more spatial variability. We conjecture that this
 may be due to the effects of modest weight degeneracy. Furthermore,
 we expect some differences in the distribution of the PEnKF from the GEnKF
-due to the approximation of the likelihood we have used in the PEnKF.
+due to the approximation of the likelihood we have used in the PEnKF. The
+filtering distribution of $\theta_{10}$ for the PEnKF and GEnKF is shown in
+Appendix~\ref{sec:theta_filtering}.
 
 Quantitatively, GEnKF
 and PEnKF both perform much better than the particle filter. The RMSPE measures
@@ -434,7 +436,7 @@ forecast distribution. We have also averaged this over space. In both scores,
 the GEnKF performs the best, followed by the PEnKF, and both are significantly
 than the prior, which we use as a baseline.
 
-\begin{figure}[ht]
+\begin{figure}[htbp]
     \centering
     \begin{subfigure}{0.48\textwidth}
         \centering
@@ -459,24 +461,6 @@ than the prior, which we use as a baseline.
     The particle filter and the PEnKF use systematic resampling. Due to 
     weight-degeneracy, the credible interval of the particle filter collapses.}
     \label{fig:filtering-bands}
-\end{figure}
-
-\begin{figure}[ht]
-    \centering
-    \begin{subfigure}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{code/simulation/figures/penkf_filtering_theta.png}
-        \caption{PEnKF}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{code/simulation/figures/genkf_filtering_theta.png}
-        \caption{GEnKF}
-    \end{subfigure}
-    \caption{Filtering distribution of $\theta_{10}$ (kernel density estimate)
-    against the true value.}
-    \label{fig:filtering-theta}
 \end{figure}
 
 \begin{table}[ht]
@@ -609,7 +593,7 @@ points do have a small but noticeable impact on inference in this model, and
 thus forecast independence is not necessarily a completely destructive
 constraint.
 
-\begin{figure}[ht]
+\begin{figure}[htbp]
     \centering
     \begin{subfigure}{0.48\textwidth}
         \centering
@@ -884,6 +868,7 @@ restrictive
 \bibliographystyle{plain}
 \bibliography{refs}
 
+\clearpage % flush the figures and tables of the main text
 \appendix
 \section{Rainfall model}
 \subsection{Particle filter likelihood}
@@ -1130,5 +1115,28 @@ Table~\ref{tab:replicates}.
     GEnKF has equally weighted members, so it has no ESS.}
     \label{tab:replicates-ess}
 \end{table}
+
+\clearpage % keep Appendix B's table before this appendix
+\section{Filtering distribution of $\theta$}\label{sec:theta_filtering}
+Figure~\ref{fig:filtering-theta} shows the filtering distribution of $\theta_{10}$ given
+$\vz_{1:10}$ for the GEnKF and PEnKF.
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{code/simulation/figures/penkf_filtering_theta.png}
+        \caption{PEnKF}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{code/simulation/figures/genkf_filtering_theta.png}
+        \caption{GEnKF}
+    \end{subfigure}
+    \caption{Filtering distribution of $\theta_{10}$ (kernel density estimate)
+    against the true value.}
+    \label{fig:filtering-theta}
+\end{figure}
 
 \end{document}
