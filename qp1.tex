@@ -21,11 +21,11 @@ literature. Furthermore, we perform a simulation studied to address these
 experimental gaps. Our main theoretical critique concerns the practicality of
 implementing these algorithms. Despite these limitations, experimental evidence
 from our simulation study shows that when these algorithms can be implemented,
-they are effective tools for inference with at least a moderate dimensional
-latent state ($d=100$), and succesfully avoid the extreme weight-degeneracy
-found with a Sequential Monte Carlo approach. Proposed extension include using
-the EnKF as a proposal distribution within a Sequential Monte Carlo framework
-to ensure asymptotic consistency.
+they are effective tools for inference with a moderately high dimensional latent
+state ($d=100$), and succesfully avoid the extreme weight-degeneracy found with
+a naive Sequential Monte Carlo approach. A propsed extension involves using the
+EnKF as a proposal distribution within a Sequential Monte Carlo framework to
+ensure asymptotic consistency.
 \end{abstract}
 
 % Problem setup
@@ -871,16 +871,15 @@ restrictive
 \clearpage % flush the figures and tables of the main text
 \appendix
 \section{Rainfall model}
-\subsection{Particle filter likelihood}
+\subsection{Particle filter likelihood}\label{sec:pf_likelihood}
 For the particle filter we require the log-likelhood.
 \begin{align}
     \mathcal L(\theta, \vx; \vz)
 \end{align}
-We are using a particle
-filter on all our latent variables, so we use the conditional log-likelihood
-marginalizing over $\vy$. We have a point mass at zero, so instead of consdiering
-densities with respect to the lebesgue measure, we consider densities with
-respect to the Lebesgue measure plus a dirac delta at zero. Letting
+The particle filter tracks $\vx$ and $\theta$, so we use the conditional log-likelihood
+marginalizing over $\vy$. We have a point mass at zero, so instead of considering
+densities with respect to the Lebesgue measure, we consider densities with
+respect to the Lebesgue measure plus a Dirac delta at zero. Letting
 $m$ be the dimension of $y$, $\lambda$ the Lebesgue measure and $\delta_0$
 the Delta measure at $0$, we are using the likelihood with respect to
 \begin{align}
@@ -889,7 +888,8 @@ the Delta measure at $0$, we are using the likelihood with respect to
 Given the model in 
 Example~\ref{ex:rainfall}, the coordinates $y_i$ of $\vy$ are \iid conditional
 on $\vx$. This simplifies the likelihood. Based on the Jacobian of the
-transformation from $\vy$ go $\vz$, we can find the likelihood
+transformation from $\vy$ go $\vz$, we can find the likelihood as a product
+over observation locations
 \begin{align}
     \mathcal L(\mathbf\theta, \vx; \vz) &:= 
         \prod_i \mathcal L_i(\theta, x_i; z_i) \\
@@ -905,91 +905,54 @@ the GEnKF, which does not use the log-likelihood for updates of $x$. However,
 to use this for the particle filter, we must include this term.
 
 \subsection{PEnKF likelihood}\label{sec:penkf_likelihood}
-For the PEnKF we need the marginal likelhood
+For the PEnKF we need the marginal likelihood
 \begin{align}
     \mathcal L(\theta; \vz)
 \end{align}
-This is different from the particle filter which required the likelihood of the
-joint state $(\theta, \vx)$. In general, \cite{katzfuss2020} suggest using
-an approximation of hte likelihood basd on the EnKF. Their procedure is as
-follows
+In essence we must marginalize the particle filter likelhiood over $\vx$. In
+general, \cite{katzfuss2020} suggest using an approximation of the likelihood
+basd on the EnKF. Their procedure is as follows
 \begin{enumerate}
     \item Propogate the ensemble to get $\tilde x_t^{ij} = \mathcal M(x_{t-1}^{ij};\mathbf\theta_i)$
     \item Estimate $\mu$ and $\tilde\Sigma$, the mean and covariance of the propogated
     ensemble
-    \item Approximate the prior on $\vx_t$ by a normal with mean $\mu$ and
+    \item Approximate the ``prior'' on $\vx_t$ by a normal with mean $\mu$ and
     variance $\widehat\Sigma = \tilde\Sigma + \mathbf Q$ 
-    \item Calculate the integral 
+    \item Calculate the integral (by quadrature if necessary)
     \begin{align}
         p(\vz_t | \theta_{1:t}, \vz_{1:t}) &=
             \int p(\vz_t | \vy_t, \mathbf \theta_t)\Norm(\vy_t;\mathbf H\mu,\mathbf H\widehat\Sigma\mathbf H^\top + \mathbf R)d\vy_t \label{eq:enkf_likelihood}
     \end{align}
 \end{enumerate}
-In our case, however the observation model is conditionally deterministic given
+In our case, the observation model is conditionally deterministic given
 $\vy_t$ and $\mathbf\theta_t$. Due to the changing support, this would make
-Equation~\ref{eq:enkf_likelihood} unwieldy. Furthermore, in the case of our
-rainfall model, we have conditional independence of $z_i$ given $x_i$. This
-allows us to simplify our likelhood with respect to the mixed measure from
-before as \begin{align}
-    p(\vz|\mathbf\theta_t,\vx_t) &= 
-        \prod_i p(z_i | \theta, x_i)
-\end{align}
-Where 
+Equation~\ref{eq:enkf_likelihood} unwieldy. We work directly with the
+likelihood presented in Section~\ref{sec:pf_likelihood}.
 \begin{align}
-    p(z_i | \theta, x_i) &=
+    \mathcal L(\mathbf\theta, \vx | \mathbf \vz) &=
         \begin{cases}
             \Phi\left(-\frac{x_i}{\sigma_t}\right)\quad &\text{if } z = 0 \\
             \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}\Norm\left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}; 0, 1\right)\quad &\text{else}
         \end{cases}
 \end{align}
 as before with respect to the mixed measure $(\lambda + \delta_0)^m$.
-To find $p(\vz|\mathbf\theta)$ we marginalize over $\vx$
+To find $\mathcal L(\mathbf\theta; \vz)$ we marginalize over $\vx$
 \begin{align}
-    p(\vz|\mathbf\theta) &= \int p(\vz|\vx,\mathbf\theta)p(\vx|\mathbf\theta)dx
+   \mathcal L(\mathbf\theta; \vz) &= \int p(\vz|\vx,\mathbf\theta)p(\vx|\mathbf\theta)dx
 \end{align}
 The conditional distribution $p(\vx|\theta)$ is approximated by adding noise to
 the forecasting distribution to get $p(\vx|\theta) = \Norm(\mu,\widehat\Sigma + \mathbf
 Q)$. Using the independence asumption
 \begin{align}
     \int p(\vz | \vx,\theta)p(\vx|\theta) dx 
-    &= \int \prod_i p(z_i | x_i, \theta)p(\vx|\theta) dx 
+    &= \int \prod_i p(z_i | x_i, \theta)p(\vx|\theta) dx \label{eq:penkf_integral}
 \end{align}
 
 \subsection{A diagonal approximation}
-We can analytically solve this integral in the case of diagonal approximation
-to $\widehat\Sigma + \mathbf Q$.
-In this we further simplify as 
-\begin{align}
-    \int \prod_i p(z_i | x_i, \theta)p(\vx|\theta) dx &= 
-    \prod_i \int p(z_i |x_i,\theta)p(x_i|\theta)\,dx_i
-\end{align}
-In the case $z_i=0$ with $x_i \sim \Norm(\mu_i, \sigma^2_i)$ we have
-$\frac{-x_i}{\sigma_t} \sim \mathcal N\left(-\frac{\mu_i}{\sigma_t},\frac{\sigma_i^2}{\sigma_t^2}\right)$, and by 
-Lemma~\ref{lemma:icdf}
-\begin{align}
-    \mathbb E\left[p(z_i=0| \theta, x_i)|\theta\right] &= \Phi\left(\frac{-\mu_i}{\sqrt{\sigma_t^2+\sigma_i^2}}\right)
-\end{align}
-In the case $z > 0$, we note that
-\begin{align}
-    \frac{z_i^{\frac 1 \theta} - x_i}{\sigma_t} 
-        \sim \Norm\left(\frac{z_i^{\frac 1 \theta} - \mu_i}{\sigma_t}, \frac{\sigma_i^2}{\sigma_t^2}\right)
-\end{align}
-and so from Lemma~\ref{lemma:exponent}
-\begin{align}
-    \mathbb E p(z_i | \theta, x_i)
-    &= \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}
-        \E\left[\frac{1}{\sqrt{2\pi}}\exp\left(-\frac 1 2 \left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}\right)^2\right)\right] \\
-    &= \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}
-        \frac{1}{\sqrt{2\pi\left(1+\frac{\sigma_i^2}{\sigma_t^2}\right)}}
-        \exp\left(-\frac{\left(z_i^{1/\theta}-\mu_i\right)^2}{2\left(\sigma_t^2+\sigma_i^2\right)}\right) \\
-    &= \frac{1}{\theta}z_i^{\frac 1 \theta - 1}\Norm\left(z_i^{1/\theta};\mu_i,\sigma_t^2+\sigma_i^2\right)
-\end{align}
-We can also recognize this as the likelihood of $p(y_i|z_i,\theta)$ adjusted by the
-Jacobian determinant $\frac{1}{\theta}z^{\frac{1}{\theta}-1}$.
 
-The independence assumption implies only the diagional elements of the
-covariance actually matter. 
-With deterministic trasnform, penkf jsut requires density estimator
+We can analytically solve the integral in equation~\ref{eq:penkf_integral} in
+the case of diagonal approximation to $\widehat\Sigma + \mathbf Q$. We make
+use of two lemmas.
 
 \begin{lemma}\label{lemma:icdf}
     If $X \sim \Norm(\mu, \sigma^2)$ then
@@ -1031,6 +994,41 @@ With deterministic trasnform, penkf jsut requires density estimator
     \end{align}
     where the remaining integral is an unnormalized Gaussian integral, with $\int \exp\left(-\frac{a}{2}(x-m)^2\right)dx = \sqrt{2\pi/a}$ for $a = \frac{1+\sigma^2}{\sigma^2}$.
 \end{proof}
+
+Using the diagonal assumption, we simplify Equation~\ref{eq:penkf_integral}
+\begin{align}
+    \int \prod_i p(z_i | x_i, \theta)p(\vx|\theta) dx &= 
+    \prod_i \int p(z_i |x_i,\theta)p(x_i|\theta)\,dx_i
+\end{align}
+In the case $z_i=0$ with $x_i \sim \Norm(\mu_i, \sigma^2_i)$ we have
+$\frac{-x_i}{\sigma_t} \sim \mathcal N\left(-\frac{\mu_i}{\sigma_t},\frac{\sigma_i^2}{\sigma_t^2}\right)$, and by 
+Lemma~\ref{lemma:icdf}
+\begin{align}
+    \mathbb E\left[p(z_i=0| \theta, x_i)|\theta\right] &= \Phi\left(\frac{-\mu_i}{\sqrt{\sigma_t^2+\sigma_i^2}}\right)
+\end{align}
+In the case $z > 0$, we note that
+\begin{align}
+    \frac{z_i^{\frac 1 \theta} - x_i}{\sigma_t} 
+        \sim \Norm\left(\frac{z_i^{\frac 1 \theta} - \mu_i}{\sigma_t}, \frac{\sigma_i^2}{\sigma_t^2}\right)
+\end{align}
+and so from Lemma~\ref{lemma:exponent}
+\begin{align}
+    \mathbb E p(z_i | \theta, x_i)
+    &= \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}
+        \E\left[\frac{1}{\sqrt{2\pi}}\exp\left(-\frac 1 2 \left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}\right)^2\right)\right] \\
+    &= \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}
+        \frac{1}{\sqrt{2\pi\left(1+\frac{\sigma_i^2}{\sigma_t^2}\right)}}
+        \exp\left(-\frac{\left(z_i^{1/\theta}-\mu_i\right)^2}{2\left(\sigma_t^2+\sigma_i^2\right)}\right) \\
+    &= \frac{1}{\theta}z_i^{\frac 1 \theta - 1}\Norm\left(z_i^{1/\theta};\mu_i,\sigma_t^2+\sigma_i^2\right)
+\end{align}
+We can also recognize this as the likelihood of $p(y_i|z_i,\theta)$ adjusted by the
+Jacobian determinant $\frac{1}{\theta}z^{\frac{1}{\theta}-1}$.
+
+% The independence assumption implies only the diagional elements of the
+% covariance actually matter. 
+% With deterministic trasnform, penkf jsut requires density estimator
+
+
 
 \subsection{GEnKF - Metropolis within Gibb's}\label{sec:genkf_mcmc}
 To implement the GEnKF we need to sample from the rainfall model. This has
