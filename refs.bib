@@ -42,7 +42,7 @@
 
 @article{evensen1992,
 author = {Evensen, Geir},
-title = {Using the extended Kalman filter with a multilayer quasi-geostrophic ocean model},
+title = {Using the extended {K}alman filter with a multilayer quasi-geostrophic ocean model},
 journal = {Journal of Geophysical Research: Oceans},
 volume = {97},
 number = {C11},
@@ -50,7 +50,7 @@ pages = {17905-17924},
 doi = {https://doi.org/10.1029/92JC01972},
 url = {https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/92JC01972},
 eprint = {https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/92JC01972},
-abstract = {The formulation of the extended Kalman filter for a multilayer nonlinear quasi-geostrophic ocean circulation model is discussed. The nonlinearity in the ocean model leads to an approximative equation for error covariance propagation, where the transition matrix is dependent on the state trajectory. This nonlinearity complicates the dynamics of the error covariance propagation, and effects which are nonexistent in linear systems contribute significantly. The transition matrix can be split into two parts, where one part results in pure evolution of error covariances in the model velocity field, and the other part contains a statistical correction term caused by the nonlinearity in the model. This correction term leads to a linear unbounded instability, which is caused by the statistical linearization of the nonlinear error propagation equation. Different ways of handling this instability are discussed. Further, nonlinear small-scale instabilities also develop, since energy is accumulated at wavelengths 2Δx, owing to the numerical discretization. These small-scale oscillations are removed with a Shapiro filter, and the effect they have on the error covariance propagation is discussed. Some data assimilation experiments are performed using the full extended Kalman filter, to examine the properties of the filter. An experiment where only the first part of the transition matrix is used to propagate the error covariances is also performed. This simplified experiment actually performs better than the full extended Kalman filter because the unbounded instability associated with the statistical correction term is avoided.},
+abstract = {The formulation of the extended {K}alman filter for a multilayer nonlinear quasi-geostrophic ocean circulation model is discussed. The nonlinearity in the ocean model leads to an approximative equation for error covariance propagation, where the transition matrix is dependent on the state trajectory. This nonlinearity complicates the dynamics of the error covariance propagation, and effects which are nonexistent in linear systems contribute significantly. The transition matrix can be split into two parts, where one part results in pure evolution of error covariances in the model velocity field, and the other part contains a statistical correction term caused by the nonlinearity in the model. This correction term leads to a linear unbounded instability, which is caused by the statistical linearization of the nonlinear error propagation equation. Different ways of handling this instability are discussed. Further, nonlinear small-scale instabilities also develop, since energy is accumulated at wavelengths 2Δx, owing to the numerical discretization. These small-scale oscillations are removed with a Shapiro filter, and the effect they have on the error covariance propagation is discussed. Some data assimilation experiments are performed using the full extended {K}alman filter, to examine the properties of the filter. An experiment where only the first part of the transition matrix is used to propagate the error covariances is also performed. This simplified experiment actually performs better than the full extended {K}alman filter because the unbounded instability associated with the statistical correction term is avoided.},
 year = {1992}
 }
 
@@ -83,13 +83,13 @@ year = {1992}
 @article{chen2000,
  ISSN = {13697412, 14679868},
  URL = {http://www.jstor.org/stable/2680693},
- abstract = {In treating dynamic systems, sequential Monte Carlo methods use discrete samples to represent a complicated probability distribution and use rejection sampling, importance sampling and weighted resampling to complete the on-line 'filtering' task. We propose a special sequential Monte Carlo method, the mixture Kalman filter, which uses a random mixture of the Gaussian distributions to approximate a target distribution. It is designed for on-line estimation and prediction of conditional and partial conditional dynamic linear models, which are themselves a class of widely used non-linear systems and also serve to approximate many others. Compared with a few available filtering methods including Monte Carlo methods, the gain in efficiency that is provided by the mixture Kalman filter can be very substantial. Another contribution of the paper is the formulation of many non-linear systems into conditional or partial conditional linear form, to which the mixture Kalman filter can be applied. Examples in target tracking and digital communications are given to demonstrate the procedures proposed.},
+ abstract = {In treating dynamic systems, sequential Monte Carlo methods use discrete samples to represent a complicated probability distribution and use rejection sampling, importance sampling and weighted resampling to complete the on-line 'filtering' task. We propose a special sequential Monte Carlo method, the mixture {K}alman filter, which uses a random mixture of the Gaussian distributions to approximate a target distribution. It is designed for on-line estimation and prediction of conditional and partial conditional dynamic linear models, which are themselves a class of widely used non-linear systems and also serve to approximate many others. Compared with a few available filtering methods including Monte Carlo methods, the gain in efficiency that is provided by the mixture {K}alman filter can be very substantial. Another contribution of the paper is the formulation of many non-linear systems into conditional or partial conditional linear form, to which the mixture {K}alman filter can be applied. Examples in target tracking and digital communications are given to demonstrate the procedures proposed.},
  author = {Rong Chen and Jun S. Liu},
  journal = {Journal of the Royal Statistical Society. Series B (Statistical Methodology)},
  number = {3},
  pages = {493--508},
  publisher = {[Royal Statistical Society, Oxford University Press]},
- title = {Mixture Kalman Filters},
+ title = {Mixture {K}alman Filters},
  urldate = {2026-10-14},
  volume = {62},
  year = {2000}
@@ -117,4 +117,27 @@ year = {1992}
   year      = {2012},
   publisher = {Institute of Mathematical Statistics},
   url       = {http://www.jstor.org/stable/41713482}
+}
+
+@techreport{kong1992,
+  title       = {A Note on Importance Sampling using Standardized Weights},
+  author      = {Kong, Augustine},
+  institution = {Department of Statistics, University of Chicago},
+  type        = {Technical Report},
+  number      = {348},
+  month       = jul,
+  year        = {1992},
+  url         = {https://d3qi0qp55mx5f5.cloudfront.net/stat/docs/tech-rpts/tr348.pdf}
+}
+
+@article{kong1994,
+  title     = {Sequential Imputations and {B}ayesian Missing Data Problems},
+  author    = {Kong, Augustine and Liu, Jun S. and Wong, Wing Hung},
+  journal   = {Journal of the American Statistical Association},
+  volume    = {89},
+  number    = {425},
+  pages     = {278--288},
+  year      = {1994},
+  publisher = {Taylor \& Francis},
+  doi       = {10.1080/01621459.1994.10476469}
 }

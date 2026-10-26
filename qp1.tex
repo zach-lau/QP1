@@ -12,20 +12,23 @@
 \maketitle
 
 \begin{abstract}
-Recent research has proposed combining ensemble Kalman Filter methods with
-Sequential Monte Carlo methods in order to perform Bayesian inference in
-high-dimensional state space models, while relaxing normality assumptions on
-priors and the data-generating process. In this qualifying paper, we provide a
-critique of existing methods to do so, and of experiments found in the existing
-literature. Furthermore, we perform a simulation studied to address these
-experimental gaps. Our main theoretical critique concerns the practicality of
-implementing these algorithms. Despite these limitations, experimental evidence
-from our simulation study shows that when these algorithms can be implemented,
-they are effective tools for inference with a moderately high dimensional latent
-state ($d=100$), and succesfully avoid the extreme weight-degeneracy found with
-a naive Sequential Monte Carlo approach. A propsed extension involves using the
-EnKF as a proposal distribution within a Sequential Monte Carlo framework to
-ensure asymptotic consistency.
+Current high dimensional Bayesian state space models often assume normality of
+the latent state, as well as observations. When these assumptions are not
+appropriate, standard inference procedures cannot be applied.  Recent research
+has proposed performing inference for such models by combining ensemble Kalman
+Filter methods with Sequential Monte Carlo methods. In this qualifying paper, we
+provide a critique of existing methods to do so, and of related experiments
+found in the existing literature. Furthermore, we perform a simulation studied
+to address these experimental gaps. Our main theoretical critique concerns the
+practicality of implementing these algorithms. Despite these limitations,
+experimental evidence from our simulation study shows that when these algorithms
+can be implemented, they are effective tools for inference with a moderately
+high dimensional latent state ($d=100$), and succesfully avoid the extreme
+weight-degeneracy found with a naive Sequential Monte Carlo approach. A proposed
+extension involves using the EnKF as a proposal distribution within a Sequential
+Monte Carlo framework to ensure asymptotic consistency. This is in contrast
+to existing methods which treat the EnKF as an exact sampling method, even when
+this may not be true.
 \end{abstract}
 
 % Problem setup
@@ -274,8 +277,8 @@ which is likely to suffer from weight degeneracy \cite{katzfuss2020}.
     \draw[->] (xf) -- (x1);
 
     % Parameter dynamics and parameter dependence of the forecast
-    \draw[->, new] (th0) -- (th1);
-    \draw[->, new] (th1) -- (xf);
+    \draw[dashed, ->, new] (th0) -- (th1);
+    \draw[dashed, ->, new] (th1) -- (xf);
 \end{tikzpicture}
 \caption{Causal graph of the hierarchical state space model. Observed
 variables $\vz_t$ are drawn as squares, for forecast independence we condition
@@ -347,7 +350,7 @@ The PEnKF is somewhat more well tested by the cloud model in
 particle filter. However, it is never comopared directly to the GEnKF in any
 experiment. Furthermore, the analysis of the PEnKF could be improved by
 evaluating the weight degenarcy problem with quantitative tools such as the
-importance sampling ESS \cite{chopin2020}.
+importance sampling ESS \cite{kong1994,kong1992,chopin2020}.
 
 % Good
 % Actually PEnKF is somewhat more flexible than authors suggest under linear
@@ -510,7 +513,7 @@ than the prior, which we use as a baseline.
 The second question we wish to answer, was if the PEnKF empirically solves
 the weight degeneracy problem. To evaluate the severity of weight degenarcy,
 we use the importance sampling effective sample size (ESS) for 
-normalized weights \cite{chopin2020} defined by
+normalized weights \cite{kong1994,kong1992,chopin2020} defined by
 \begin{align}
     \text{ESS} = \frac{N}{\sum_i w_i^2}
 \end{align}.
@@ -774,10 +777,11 @@ bootstrap particle filter. An outline of this proposed algorithm is given below
 \end{enumerate}
 One potential weakness of this method is that the marginal uncertainty of $\vx$
 will typically overstate the conditional uncertainty conditioned on $\theta_t^i$
-(which is what we would ideally use). However, in the case of forecast
-independence, they are actually equivalent, and this proposed algorithm may
-perform well. In such cases, we conjecute that it may be significantly faster
-than the GEnKF.
+(which is what we would ideally use). This could be combatted by using locally
+weighted estimates of the covariance based on points with similar $\theta$
+values. In the case of forecast independence, the conditional and marginal
+covariances are identical, and this proposed algorithm may perform well. In such
+cases, we conjecute that it may also be significantly faster than the GEnKF.
 
 % We also propose one simple methodological extension that appears to have been
 % missed by the original authors. When the dynamics are linear, the Kalman filter
@@ -838,6 +842,17 @@ with forecast independence is meaningfully more expressive than completely
 assuming temporal independence, although we maintain that it is still highly
 restrictive 
 
+\section{Statement on the use of LLMs}
+LLMs were used for the following
+\begin{itemize}
+    \item Assistance with coding, particularly generating graphs, I/O
+    operations, refactoring, transpiling R to python, and HMC code
+    \item Typesetting - formatting graphs, figures and tables. Creating Tikz
+    figures.
+    \item Reviewing spelling and grammar
+    \item Reviewing mathematical proofs and notational consistency
+\end{itemize}
+
 % Planning notes
 % Not really using ensemble Kalman updates? N \times M issue
 
@@ -871,6 +886,10 @@ restrictive
 \clearpage % flush the figures and tables of the main text
 \appendix
 \section{Rainfall model}
+Throughout this section we drop subscripts related to time for ease of reading.
+All distributions are assumed to be conditional on $\vz_{1:t-1}$, even if this
+is not stated in the notation.
+
 \subsection{Particle filter likelihood}\label{sec:pf_likelihood}
 For the particle filter we require the log-likelhood.
 \begin{align}
@@ -898,11 +917,12 @@ over observation locations
             \Phi\left(-\frac{x_i}{\sigma_t}\right)\quad &\text{if } z = 0 \\
             \frac{1}{\theta\sigma_t}z_i^{\frac 1 \theta - 1}\Norm\left(\frac{z_i^{1/\theta}-x_i}{\sigma_t}; 0, 1\right)\quad &\text{else}
         \end{cases}
-\end{align}
-The $z > 0$ term agrees with that presented in \cite{katzfuss2020}. They
-omit the $z=0$ term, because they presented the likelihood in the context of
-the GEnKF, which does not use the log-likelihood for updates of $x$. However,
-to use this for the particle filter, we must include this term.
+\end{align},
+where $i$ ranges observation locations. The $z > 0$ term agrees with that
+presented in \cite{katzfuss2020}. They omit the $z=0$ term, because they
+presented the likelihood in the context of the GEnKF, which does not use the
+log-likelihood for updates of $x$. However, to use this for the particle filter,
+we must include this term.
 
 \subsection{PEnKF likelihood}\label{sec:penkf_likelihood}
 For the PEnKF we need the marginal likelihood
@@ -911,9 +931,9 @@ For the PEnKF we need the marginal likelihood
 \end{align}
 In essence we must marginalize the particle filter likelhiood over $\vx$. In
 general, \cite{katzfuss2020} suggest using an approximation of the likelihood
-basd on the EnKF. Their procedure is as follows
+basd on the EnKF. Given a $\theta_i$, their procedure is as follows
 \begin{enumerate}
-    \item Propogate the ensemble to get $\tilde x_t^{ij} = \mathcal M(x_{t-1}^{ij};\mathbf\theta_i)$
+    \item Propogate the ensemble to get $\tilde x_t^{ij} = \mathcal M(x_{t-1}^{ij};\mathbf\theta^i_t)$
     \item Estimate $\mu$ and $\tilde\Sigma$, the mean and covariance of the propogated
     ensemble
     \item Approximate the ``prior'' on $\vx_t$ by a normal with mean $\mu$ and
